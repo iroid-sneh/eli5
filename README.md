@@ -79,6 +79,12 @@ ELI5 Repo gives you that understanding in minutes, in a language you already lov
 /plugin install eli5@eli5-repo
 ```
 
+> **Using the VS Code extension or desktop app?** If `/plugin` says it isn't available, run these in a normal terminal instead, then start a new chat:
+> ```bash
+> claude plugin marketplace add iroid-sneh/eli5
+> claude plugin install eli5@eli5-repo
+> ```
+
 Then, inside any project:
 
 ```text
