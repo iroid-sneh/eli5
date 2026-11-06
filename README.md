@@ -109,6 +109,33 @@ Then use `/explain cricket` in Claude Code. (Copy it to `<project>/.claude/skill
 claude --plugin-dir /path/to/eli5
 ```
 
+## 🔄 Updating
+
+**Updates are not automatic by default.** Claude Code only auto-updates Anthropic's official marketplaces; for community plugins like this one, auto-update starts switched off.
+
+**Check which version you have:**
+
+```bash
+claude plugin list
+```
+
+Look for `eli5@eli5-repo` and its `Version:` line. In the terminal version of Claude Code you can also open `/plugin` → **Installed**. The latest version is the `"version"` in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json).
+
+**Update by hand:**
+
+```bash
+claude plugin marketplace update eli5-repo
+claude plugin update eli5@eli5-repo
+```
+
+Then start a new Claude Code chat so the new version loads.
+
+**Or turn on auto-update once:** in the terminal version of Claude Code, open `/plugin` → **Marketplaces** → `eli5-repo` → **Enable auto-update**. After that, new versions install when Claude Code starts.
+
+> Using the VS Code extension and `claude` isn't found in your terminal? Install the command-line tool with `curl -fsSL https://claude.ai/install.sh | bash`, or run the copy that ships inside the extension (`~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude`).
+
+**Using Option B (copied skill)?** Copies never update on their own. Pull the repo again and re-copy `skills/explain`.
+
 ## 🚀 Usage
 
 ```text
