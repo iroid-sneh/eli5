@@ -1,0 +1,12 @@
+{
+  "name": "eli5",
+  "version": "0.1.0",
+  "description": "Explain any codebase like you're 5, in a theme you love (cricket, cars, games, movies...). Honest health report with file:line proof, handover notes, and a beautiful interactive report. Free, local, zero dependencies.",
+  "author": {
+    "name": "Sneh Patel"
+  },
+  "homepage": "https://github.com/iroid-sneh/eli5",
+  "repository": "https://github.com/iroid-sneh/eli5",
+  "license": "MIT",
+  "keywords": ["eli5", "onboarding", "codebase", "documentation", "audit", "handover", "explain"]
+}

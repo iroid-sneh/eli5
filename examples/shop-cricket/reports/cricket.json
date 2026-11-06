@@ -1,0 +1,1056 @@
+{
+ "meta": {
+  "project": "tiny-shop",
+  "theme": "cricket",
+  "generated_at": "2026-11-06T19:00:00",
+  "default_depth": "eli5",
+  "stats": {
+   "files": 11,
+   "lines_of_code": 109,
+   "languages": [
+    "JavaScript"
+   ],
+   "frameworks": [
+    "Express",
+    "MongoDB / Mongoose",
+    "Stripe"
+   ]
+  },
+  "trust": {
+   "claims": 32,
+   "proven": 32,
+   "unproven": 0,
+   "score": 100,
+   "evidence_checked": 37,
+   "evidence_failed": 0,
+   "checked_at": "2026-11-06T18:58:18"
+  }
+ },
+ "story": {
+  "eli5": "Tiny Shop is a cricket stadium where fans buy things. Fans look at the stalls, pick items, and pay at the ticket counter. Most of the stadium is built. But the ticket counter can be tricked, anyone can knock down a stall, and the refund window is an empty room.",
+  "teammate": "Tiny Shop is a small online shop backend: the stalls (products API), the scorer's desk (orders API) and the ticket counter (Stripe payments). The happy path works: list products, place an order, start a Stripe payment. The weak spots: the Stripe webhook trusts anyone, the price comes from the customer, product deletion has no login check, and refunds are an empty function.",
+  "senior": "Express 4 + Mongoose API with three routers (/products, /orders, /payments) and JWT auth middleware. Stripe PaymentIntents are created with a client-supplied amount; the webhook marks orders paid without signature verification; DELETE /products/:id is unauthenticated; /payments/refund is an empty async handler that never responds. No tests, no input validation, secrets hardcoded in two places."
+ },
+ "theme_map": [
+  {
+   "part": "The whole app",
+   "real": "Express server · src/server.js",
+   "is": "The cricket stadium",
+   "why": "One place where everything happens on match day"
+  },
+  {
+   "part": "Routes",
+   "real": "/products, /orders, /payments",
+   "is": "The stadium gates",
+   "why": "Each gate has a sign and leads to one part of the ground"
+  },
+  {
+   "part": "Products API",
+   "real": "src/routes/products.js",
+   "is": "The food and merch stalls",
+   "why": "Where fans see what's on offer"
+  },
+  {
+   "part": "Orders API",
+   "real": "src/routes/orders.js",
+   "is": "The scorer's desk",
+   "why": "Writes down what each fan picked"
+  },
+  {
+   "part": "Payments",
+   "real": "Stripe · src/routes/payments.js",
+   "is": "The ticket counter",
+   "why": "Real money turns into a confirmed order"
+  },
+  {
+   "part": "Auth",
+   "real": "JWT · src/middleware/auth.js",
+   "is": "Security at the gate checking passes",
+   "why": "Only fans with a valid pass get in"
+  },
+  {
+   "part": "Database",
+   "real": "MongoDB via Mongoose · src/models",
+   "is": "The official scorebook",
+   "why": "Every product and order is written down and kept"
+  },
+  {
+   "part": "Email",
+   "real": "Nodemailer · src/services/email.js",
+   "is": "The stadium announcer",
+   "why": "Tells the fan their order went through"
+  },
+  {
+   "part": "Webhook",
+   "real": "POST /payments/webhook",
+   "is": "The radio call from the bank to the scorer",
+   "why": "Someone outside tells us 'the payment worked'"
+  },
+  {
+   "part": "Config / secrets",
+   "real": "process.env + .env.example",
+   "is": "The dressing-room locker",
+   "why": "Where the keys should be kept safely"
+  },
+  {
+   "part": "A bug",
+   "real": "",
+   "is": "A dropped catch",
+   "why": "Something that should have worked, didn't"
+  },
+  {
+   "part": "A security hole",
+   "real": "",
+   "is": "A gap in the fence",
+   "why": "Lets people in who shouldn't be"
+  }
+ ],
+ "architecture": {
+  "explain": {
+   "eli5": "Fans walk in through three gates: the stalls, the scorer's desk and the ticket counter. Every gate writes into the same scorebook. The ticket counter talks to the bank, and the bank radios back when money arrives. The announcer shouts out receipts.",
+   "teammate": "src/server.js opens the stadium: it mounts three routers (/products, /orders, /payments) and connects to MongoDB (the scorebook). Orders and payments sit behind the gate security (requireAuth). Payments talk to Stripe (the bank), and Stripe calls back through the webhook radio. Orders ask the announcer (Nodemailer) to send a receipt.",
+   "senior": "Single Express process. server.js mounts routers at /products, /orders and /payments, enables cors() with defaults and express.json(), then connects Mongoose with MONGO_URL before listen(). requireAuth (JWT, hardcoded secret) guards orders and checkout/refund but not product deletion or the webhook. External dependencies: Stripe (PaymentIntents + webhook), SMTP via Nodemailer."
+  },
+  "mermaid": "flowchart LR\n  FAN[Fans / app] --> G1[Stalls gate · /products]\n  FAN --> G2[Scorer's desk · /orders]\n  FAN --> G3[Ticket counter · /payments]\n  SEC[Gate security · requireAuth] -.guards.-> G2\n  SEC -.guards.-> G3\n  G1 --> DB[(Scorebook · MongoDB)]\n  G2 --> DB\n  G3 --> DB\n  G3 <--> BANK[Bank · Stripe]\n  BANK -- radio call / webhook --> G3\n  G2 --> MIC[Announcer · email]",
+  "evidence": [
+   {
+    "file": "src/server.js",
+    "line_start": 12,
+    "line_end": 14,
+    "quote": "app.use('/products', productRoutes);\napp.use('/orders', orderRoutes);\napp.use('/payments', paymentRoutes);",
+    "status": "verified"
+   },
+   {
+    "file": "src/server.js",
+    "line_start": 16,
+    "line_end": 16,
+    "quote": "mongoose.connect(process.env.MONGO_URL)",
+    "status": "verified"
+   }
+  ]
+ },
+ "modules": [
+  {
+   "name": "Payments",
+   "path": "src/routes/payments.js",
+   "theme_role": "The ticket counter",
+   "status": "partial",
+   "explain": {
+    "eli5": "The ticket counter takes money and asks the bank to charge the fan. But it lets the fan say the price, it believes any radio call that says 'paid', and the refund window has nobody inside.",
+    "teammate": "Three endpoints: POST /checkout creates a Stripe PaymentIntent, POST /webhook marks an order 'paid' when Stripe says so, and POST /refund is wired to an empty function. Checkout works mechanically, but the amount comes from req.body and the webhook trusts its input.",
+    "senior": "POST /checkout → stripe.paymentIntents.create({ amount: req.body.amount }). POST /webhook parses req.body (already JSON-parsed by express.json()) and calls Order.findByIdAndUpdate(..., {status:'paid'}) with no stripe.webhooks.constructEvent. POST /refund → empty async refundOrder that never sends a response."
+   },
+   "depends_on": [
+    "Orders (model)",
+    "Stripe",
+    "Gate security"
+   ],
+   "evidence": [
+    {
+     "file": "src/routes/payments.js",
+     "line_start": 10,
+     "line_end": 11,
+     "quote": "const intent = await stripe.paymentIntents.create({\n    amount: req.body.amount,",
+     "status": "verified"
+    },
+    {
+     "file": "src/routes/payments.js",
+     "line_start": 29,
+     "line_end": 31,
+     "quote": "async function refundOrder(req, res) {\n  // TODO: implement refunds\n}",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "name": "Orders",
+   "path": "src/routes/orders.js",
+   "theme_role": "The scorer's desk",
+   "status": "done",
+   "explain": {
+    "eli5": "The scorer writes down what a fan picked and takes the items off the stall shelves. Then the announcer sends a receipt. It works, but it trusts the fan about the total and counts shelf items one by one.",
+    "teammate": "POST /orders (login required) creates an order with the items and amount from the request, lowers stock for each product one at a time, and fires a receipt email. GET /orders/mine lists your own orders.",
+    "senior": "Order.create with client-supplied amount; per-item Product.findById + save inside a for-loop (N+1, no transaction, no null check, no stock floor); sendReceipt(...).catch(() => {}) swallows email errors. GET /mine filters by req.user.id (correct ownership check)."
+   },
+   "depends_on": [
+    "Scorebook (MongoDB)",
+    "Announcer (email)",
+    "Gate security"
+   ],
+   "evidence": [
+    {
+     "file": "src/routes/orders.js",
+     "line_start": 8,
+     "line_end": 8,
+     "quote": "router.post('/', requireAuth, async (req, res) => {",
+     "status": "verified"
+    },
+    {
+     "file": "src/routes/orders.js",
+     "line_start": 20,
+     "line_end": 20,
+     "quote": "res.json(await Order.find({ userId: req.user.id }));",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "name": "Products",
+   "path": "src/routes/products.js",
+   "theme_role": "The food and merch stalls",
+   "status": "partial",
+   "explain": {
+    "eli5": "Anyone can look at the stalls, which is good. But anyone can also knock a stall down, without showing a pass.",
+    "teammate": "GET /products lists every product (no paging). DELETE /products/:id deletes a product and is not behind requireAuth. There's no way to create or edit products through the API.",
+    "senior": "GET / → Product.find() unbounded. DELETE /:id → findByIdAndDelete with no auth or role check. No POST/PUT routes, so products must be inserted directly into the DB."
+   },
+   "depends_on": [
+    "Scorebook (MongoDB)"
+   ],
+   "evidence": [
+    {
+     "file": "src/routes/products.js",
+     "line_start": 10,
+     "line_end": 11,
+     "quote": "router.delete('/:id', async (req, res) => {\n  await Product.findByIdAndDelete(req.params.id);",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "name": "Gate security (auth)",
+   "path": "src/middleware/auth.js",
+   "theme_role": "Security at the gate checking passes",
+   "status": "done",
+   "explain": {
+    "eli5": "The guard checks each fan's pass. But the secret stamp used to make passes is written on the guard's hat, where anyone who reads the code can copy it.",
+    "teammate": "requireAuth reads the Bearer token and verifies it with jsonwebtoken. The signing secret is the hardcoded string 'super-secret-jwt-key', so anyone with the code can make valid passes.",
+    "senior": "jwt.verify(token, 'super-secret-jwt-key'): secret in source, no algorithm pinning, no expiry enforcement beyond the token's own claims. There is no login/signup endpoint in this repo, so tokens must be issued elsewhere."
+   },
+   "depends_on": [],
+   "evidence": [
+    {
+     "file": "src/middleware/auth.js",
+     "line_start": 6,
+     "line_end": 6,
+     "quote": "req.user = jwt.verify(token, 'super-secret-jwt-key');",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "name": "Scorebook (data models)",
+   "path": "src/models",
+   "theme_role": "The official scorebook",
+   "status": "done",
+   "explain": {
+    "eli5": "Two pages in the scorebook: one for things on sale, one for fans' orders.",
+    "teammate": "Mongoose models: Product (name, price, stock) and Order (userId, items, amount, status = pending/paid).",
+    "senior": "Product {name, price, stock} and Order {userId, items[{productId, qty}], amount, status default 'pending'}. No validation, no indexes, userId is a plain String (no ref)."
+   },
+   "depends_on": [],
+   "evidence": [
+    {
+     "file": "src/models/Order.js",
+     "line_start": 7,
+     "line_end": 7,
+     "quote": "status: { type: String, default: 'pending' },",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "name": "Announcer (email)",
+   "path": "src/services/email.js",
+   "theme_role": "The stadium announcer",
+   "status": "done",
+   "explain": {
+    "eli5": "The announcer tells fans their order is in. If the microphone breaks, nobody notices.",
+    "teammate": "sendReceipt sends a plain-text email through SMTP (Nodemailer). The SMTP settings come from env vars that aren't listed in .env.example.",
+    "senior": "Nodemailer transport from SMTP_HOST/SMTP_USER/SMTP_PASS (undocumented). Caller swallows failures."
+   },
+   "depends_on": [],
+   "evidence": [
+    {
+     "file": "src/services/email.js",
+     "line_start": 4,
+     "line_end": 4,
+     "quote": "host: process.env.SMTP_HOST,",
+     "status": "verified"
+    }
+   ]
+  }
+ ],
+ "journeys": [
+  {
+   "title": {
+    "eli5": "A fan buys something",
+    "teammate": "Order → checkout → webhook",
+    "senior": "POST /orders → POST /payments/checkout → POST /payments/webhook"
+   },
+   "summary": {
+    "eli5": "From picking a snack to the scorer writing 'paid'.",
+    "teammate": "The full purchase path, and where it can be tricked.",
+    "senior": "End-to-end purchase flow with trust boundaries."
+   },
+   "steps": [
+    {
+     "text": {
+      "eli5": "The fan shows their pass at the gate.",
+      "teammate": "requireAuth checks the JWT (gate security).",
+      "senior": "requireAuth verifies the Bearer JWT and sets req.user."
+     },
+     "evidence": [
+      {
+       "file": "src/middleware/auth.js",
+       "line_start": 4,
+       "line_end": 4,
+       "quote": "const token = (req.headers.authorization || '').replace('Bearer ', '');",
+       "status": "verified"
+      }
+     ]
+    },
+    {
+     "text": {
+      "eli5": "The scorer writes the order down. ⚠️ The fan also says how much it costs, and the scorer believes them.",
+      "teammate": "POST /orders saves the items and the amount sent by the client.",
+      "senior": "Order.create({ userId, items: req.body.items, amount: req.body.amount }): amount not recomputed from product prices."
+     },
+     "evidence": [
+      {
+       "file": "src/routes/orders.js",
+       "line_start": 9,
+       "line_end": 9,
+       "quote": "amount: req.body.amount",
+       "status": "verified"
+      }
+     ]
+    },
+    {
+     "text": {
+      "eli5": "Items are taken off the stall shelves, one trip per item.",
+      "teammate": "Stock is lowered product by product in a loop.",
+      "senior": "Sequential findById/save per item: N+1, non-atomic, no stock floor, crashes if a product id is unknown."
+     },
+     "evidence": [
+      {
+       "file": "src/routes/orders.js",
+       "line_start": 10,
+       "line_end": 11,
+       "quote": "for (const item of order.items) {\n    const product = await Product.findById(item.productId);",
+       "status": "verified"
+      }
+     ]
+    },
+    {
+     "text": {
+      "eli5": "At the ticket counter, the bank is asked to charge the price the fan said.",
+      "teammate": "POST /payments/checkout creates a Stripe PaymentIntent with the amount from the request.",
+      "senior": "paymentIntents.create({ amount: req.body.amount, metadata: { orderId } }): client controls the charge."
+     },
+     "evidence": [
+      {
+       "file": "src/routes/payments.js",
+       "line_start": 11,
+       "line_end": 11,
+       "quote": "amount: req.body.amount,",
+       "status": "verified"
+      }
+     ]
+    },
+    {
+     "text": {
+      "eli5": "The bank radios 'paid!' and the scorer marks the order paid. ⚠️ The scorer never checks it's really the bank on the radio.",
+      "teammate": "The webhook marks the order paid without checking Stripe's signature.",
+      "senior": "Webhook handler trusts req.body; no constructEvent / signing secret, so a forged POST marks any order paid."
+     },
+     "evidence": [
+      {
+       "file": "src/routes/payments.js",
+       "line_start": 22,
+       "line_end": 22,
+       "quote": "await Order.findByIdAndUpdate(event.data.object.metadata.orderId, { status: 'paid' });",
+       "status": "verified"
+      }
+     ]
+    }
+   ],
+   "mermaid": "sequenceDiagram\n  participant F as Fan\n  participant S as Scorer · /orders\n  participant T as Ticket counter · /payments\n  participant B as Bank · Stripe\n  F->>S: order + amount\n  S->>S: save order, lower stock\n  F->>T: checkout with amount\n  T->>B: charge that amount\n  B-->>T: webhook says paid\n  T->>S: mark order paid"
+  },
+  {
+   "title": {
+    "eli5": "A fan asks for their money back",
+    "teammate": "Refund request",
+    "senior": "POST /payments/refund"
+   },
+   "steps": [
+    {
+     "text": {
+      "eli5": "The fan walks to the refund window with their pass.",
+      "teammate": "POST /payments/refund passes requireAuth.",
+      "senior": "Route registered with requireAuth → refundOrder."
+     },
+     "evidence": [
+      {
+       "file": "src/routes/payments.js",
+       "line_start": 27,
+       "line_end": 27,
+       "quote": "router.post('/refund', requireAuth, refundOrder);",
+       "status": "verified"
+      }
+     ]
+    },
+    {
+     "text": {
+      "eli5": "⚠️ Here the story stops: the room is empty. The fan waits forever and nobody answers.",
+      "teammate": "refundOrder is empty: no Stripe refund, no order update, and it never sends a response, so the request hangs until it times out.",
+      "senior": "Empty async handler: no res.send, so the connection hangs until the client/server timeout."
+     },
+     "evidence": [
+      {
+       "file": "src/routes/payments.js",
+       "line_start": 30,
+       "line_end": 30,
+       "quote": "// TODO: implement refunds",
+       "status": "verified"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "data": {
+  "explain": {
+   "eli5": "The scorebook has two pages: things on sale, and fans' orders. An order lists items and a total, and starts as 'waiting to pay'.",
+   "teammate": "MongoDB stores Products and Orders. Orders reference products by id string and the user by id string; status goes pending → paid (there is no 'refunded' or 'failed').",
+   "senior": "Two Mongoose collections, no schema validation, no indexes, no references (plain String ids). Status values are only set to 'pending' (default) and 'paid' (webhook)."
+  },
+  "entities": [
+   {
+    "name": "Product",
+    "theme_role": "A stall item",
+    "explain": {
+     "eli5": "Something on sale, its price, and how many are left.",
+     "teammate": "name, price, stock",
+     "senior": "{ name: String, price: Number, stock: Number }"
+    },
+    "evidence": [
+     {
+      "file": "src/models/Product.js",
+      "line_start": 6,
+      "line_end": 6,
+      "quote": "stock: Number,",
+      "status": "verified"
+     }
+    ]
+   },
+   {
+    "name": "Order",
+    "theme_role": "A line in the scorebook",
+    "explain": {
+     "eli5": "Who ordered, what, the total, and if it's paid.",
+     "teammate": "userId, items, amount, status",
+     "senior": "{ userId: String, items: [{productId, qty}], amount: Number, status: 'pending' }"
+    },
+    "evidence": [
+     {
+      "file": "src/models/Order.js",
+      "line_start": 5,
+      "line_end": 5,
+      "quote": "items: [{ productId: String, qty: Number }],",
+      "status": "verified"
+     }
+    ]
+   }
+  ],
+  "mermaid": "erDiagram\n  ORDER ||--|{ ITEM : contains\n  ITEM }o--|| PRODUCT : points_to\n  PRODUCT {\n    string name\n    number price\n    number stock\n  }\n  ORDER {\n    string userId\n    number amount\n    string status\n  }"
+ },
+ "findings": [
+  {
+   "id": "F1",
+   "severity": "broken",
+   "confidence": "verified",
+   "category": "payments",
+   "title_eli5": "Anyone can shout 'he paid!' on the radio and the scorer believes them",
+   "title": "Stripe webhook does not verify the signature",
+   "explain": {
+    "eli5": "When the bank radios 'paid!', the scorer writes 'paid' without checking it's really the bank. Anyone can pretend.",
+    "teammate": "The webhook reads req.body and marks the order paid. It never checks Stripe's signature header, so anyone who knows the URL can mark any order as paid.",
+    "senior": "No stripe.webhooks.constructEvent(rawBody, sig, secret). express.json() runs globally, so the raw body needed for verification isn't even available on this route."
+   },
+   "why_it_matters": {
+    "eli5": "People can get things for free.",
+    "teammate": "Free orders for anyone who sends a fake request.",
+    "senior": "Direct revenue loss; order state can be forged."
+   },
+   "fix": {
+    "eli5": "Check the bank's secret stamp on every radio call.",
+    "teammate": "Use Stripe's webhook signing secret to verify each event.",
+    "senior": "Mount the webhook with express.raw({type:'application/json'}) before express.json(), verify with stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET), and make the handler idempotent."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/payments.js",
+     "line_start": 19,
+     "line_end": 20,
+     "quote": "router.post('/webhook', async (req, res) => {\n  const event = req.body;",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F2",
+   "severity": "broken",
+   "confidence": "verified",
+   "category": "payments",
+   "title_eli5": "The fan decides the ticket price themselves",
+   "title": "Charge amount is taken from the client request",
+   "explain": {
+    "eli5": "The ticket counter asks the fan 'how much should I charge you?' and charges exactly that. A fan can say 1 rupee.",
+    "teammate": "Both the order total and the Stripe charge use req.body.amount instead of adding up real product prices.",
+    "senior": "Order.amount and PaymentIntent.amount come from req.body; nothing recomputes from Product.price × qty."
+   },
+   "why_it_matters": {
+    "eli5": "Big things can be bought for tiny money.",
+    "teammate": "Customers can pay any amount they want.",
+    "senior": "Price tampering → revenue loss."
+   },
+   "fix": {
+    "eli5": "The counter should look up the real prices itself.",
+    "teammate": "Compute the total on the server from the products in the order.",
+    "senior": "Load products by id, compute sum(price*qty) server-side, store it on the Order, and create the PaymentIntent from the stored order amount (accept only orderId from the client)."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/payments.js",
+     "line_start": 11,
+     "line_end": 11,
+     "quote": "amount: req.body.amount,",
+     "status": "verified"
+    },
+    {
+     "file": "src/routes/orders.js",
+     "line_start": 9,
+     "line_end": 9,
+     "quote": "amount: req.body.amount",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F3",
+   "severity": "broken",
+   "confidence": "verified",
+   "category": "auth",
+   "title_eli5": "Anyone can knock down a stall without showing a pass",
+   "title": "DELETE /products/:id has no authentication",
+   "explain": {
+    "eli5": "Every other important gate has a guard. The 'remove a stall' gate has none.",
+    "teammate": "The delete route isn't wrapped in requireAuth, and the router isn't mounted behind it either, so anyone can delete products.",
+    "senior": "products router has no auth middleware and is mounted bare at /products in server.js; DELETE /:id calls findByIdAndDelete directly. There are no admin roles anywhere."
+   },
+   "why_it_matters": {
+    "eli5": "Someone could empty the whole shop.",
+    "teammate": "Any visitor can wipe the catalogue.",
+    "senior": "Unauthenticated destructive endpoint → data loss / vandalism."
+   },
+   "fix": {
+    "eli5": "Put a guard, and only let managers in.",
+    "teammate": "Add requireAuth plus an admin check.",
+    "senior": "router.delete('/:id', requireAuth, requireRole('admin'), ...); add a role claim to the JWT."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/products.js",
+     "line_start": 10,
+     "line_end": 10,
+     "quote": "router.delete('/:id', async (req, res) => {",
+     "status": "verified"
+    },
+    {
+     "file": "src/server.js",
+     "line_start": 12,
+     "line_end": 12,
+     "quote": "app.use('/products', productRoutes);",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F4",
+   "severity": "broken",
+   "confidence": "verified",
+   "category": "unfinished",
+   "title_eli5": "The refund window is an empty room, and fans wait there forever",
+   "title": "POST /payments/refund is an empty handler that never responds",
+   "explain": {
+    "eli5": "There's a refund sign and a door, but nobody inside. The fan just stands and waits.",
+    "teammate": "refundOrder only has a TODO comment. It doesn't refund, doesn't update the order, and never sends a reply, so the request hangs.",
+    "senior": "Empty async function bound to a live route; no Stripe refunds.create, no status change, no response → client hangs until timeout."
+   },
+   "why_it_matters": {
+    "eli5": "Fans can't get money back.",
+    "teammate": "Refunds are impossible and the app looks frozen.",
+    "senior": "Feature missing + hung connections; support has to refund manually in Stripe."
+   },
+   "fix": {
+    "eli5": "Put someone in the room who can give money back.",
+    "teammate": "Implement the refund with Stripe and reply to the user.",
+    "senior": "Check ownership and status, call stripe.refunds.create({ payment_intent }), set status 'refunded', respond 200. Until then, return 501."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/payments.js",
+     "line_start": 29,
+     "line_end": 31,
+     "quote": "async function refundOrder(req, res) {\n  // TODO: implement refunds\n}",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F5",
+   "severity": "risky",
+   "confidence": "verified",
+   "category": "security",
+   "title_eli5": "The secret pass stamp is written on the guard's hat",
+   "title": "JWT secret is hardcoded in source",
+   "explain": {
+    "eli5": "Passes are made with a secret stamp. The stamp's pattern is written right in the code.",
+    "teammate": "jwt.verify uses the literal string 'super-secret-jwt-key'. Anyone with the code can create valid login tokens.",
+    "senior": "Hardcoded HMAC secret; rotate and load from env (JWT_SECRET), pin algorithms: ['HS256']."
+   },
+   "why_it_matters": {
+    "eli5": "Anyone could make a fake pass.",
+    "teammate": "Account takeover for any user id.",
+    "senior": "Token forgery → full auth bypass."
+   },
+   "fix": {
+    "eli5": "Keep the stamp in the locked locker.",
+    "teammate": "Move it to an environment variable.",
+    "senior": "jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] }); document JWT_SECRET in .env.example."
+   },
+   "evidence": [
+    {
+     "file": "src/middleware/auth.js",
+     "line_start": 6,
+     "line_end": 6,
+     "quote": "jwt.verify(token, 'super-secret-jwt-key')",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F6",
+   "severity": "risky",
+   "confidence": "verified",
+   "category": "security",
+   "title_eli5": "The bank key is taped to the ticket counter",
+   "title": "Stripe secret key hardcoded in payments.js",
+   "explain": {
+    "eli5": "The key to the bank is written in the code instead of being locked in the locker.",
+    "teammate": "The Stripe client is created with a key written in the file (a test key here, value hidden). It should come from an env var.",
+    "senior": "new Stripe('<masked test key>'): move to STRIPE_SECRET_KEY, and rotate the key if this repo was ever public."
+   },
+   "why_it_matters": {
+    "eli5": "If it were a real key, anyone could use the bank.",
+    "teammate": "Keys in code leak through repos and screenshots.",
+    "senior": "Secret leakage; easy to accidentally ship a live key."
+   },
+   "fix": {
+    "eli5": "Move the key into the locker.",
+    "teammate": "Use process.env.STRIPE_SECRET_KEY.",
+    "senior": "new Stripe(process.env.STRIPE_SECRET_KEY); add it to .env.example; scan history for leaked keys."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/payments.js",
+     "line_start": 6,
+     "line_end": 6,
+     "quote": "const stripe = new Stripe(",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F7",
+   "severity": "risky",
+   "confidence": "verified",
+   "category": "data",
+   "title_eli5": "Shelves are counted one item at a time, and can go below zero",
+   "title": "Stock update is N+1, non-atomic, and unchecked",
+   "explain": {
+    "eli5": "For each item, the scorer walks to the shelf, takes one off, and walks back. Two fans at once can grab the last snack, and the shelf can say -1.",
+    "teammate": "Stock is lowered in a loop with one database trip per item, with no check that enough stock exists, and no protection when two orders happen at the same time.",
+    "senior": "findById + save per item: N+1 round trips, a read-modify-write race, no stock >= qty guard, and a TypeError if a productId is unknown (product is null). The order is created before stock is checked."
+   },
+   "why_it_matters": {
+    "eli5": "You can sell snacks you don't have.",
+    "teammate": "Overselling and slow checkouts for big carts.",
+    "senior": "Data integrity + latency; crashes on bad ids."
+   },
+   "fix": {
+    "eli5": "Check the shelf first, and change it in one go.",
+    "teammate": "Use one atomic update per item that only succeeds if there's enough stock.",
+    "senior": "Product.updateOne({ _id, stock: { $gte: qty } }, { $inc: { stock: -qty } }) or bulkWrite inside a transaction; validate the items before creating the order."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/orders.js",
+     "line_start": 11,
+     "line_end": 12,
+     "quote": "const product = await Product.findById(item.productId);\n    product.stock -= item.qty;",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F8",
+   "severity": "risky",
+   "confidence": "verified",
+   "category": "reliability",
+   "title_eli5": "If the announcer's microphone breaks, nobody finds out",
+   "title": "Receipt email errors are silently swallowed",
+   "explain": {
+    "eli5": "The receipt is shouted out, but if it fails, the mistake is thrown in the bin.",
+    "teammate": "sendReceipt(...).catch(() => {}) hides every email failure, with no log and no retry.",
+    "senior": "Fire-and-forget with an empty catch; no logging, retry or outbox."
+   },
+   "why_it_matters": {
+    "eli5": "Fans don't get receipts and nobody knows why.",
+    "teammate": "Silent failures are hard to debug.",
+    "senior": "Lost notifications, zero observability."
+   },
+   "fix": {
+    "eli5": "Write it down when the mic fails.",
+    "teammate": "Log the error, and retry later.",
+    "senior": ".catch(err => logger.error({ err, orderId }, 'receipt failed')) or push to a job queue."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/orders.js",
+     "line_start": 15,
+     "line_end": 15,
+     "quote": "sendReceipt(req.user.email, order).catch(() => {});",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F9",
+   "severity": "risky",
+   "confidence": "verified",
+   "category": "tests",
+   "title_eli5": "No nets practice: the team has never trained before a match",
+   "title": "No automated tests, while money is handled",
+   "explain": {
+    "eli5": "There's no practice at all. Every match is the first try.",
+    "teammate": "There are no test files and no test script, yet the app takes payments.",
+    "senior": "No test runner in package.json and no test files; payment and stock logic are untested."
+   },
+   "why_it_matters": {
+    "eli5": "Mistakes are found by real fans.",
+    "teammate": "Every change can break checkout without anyone noticing.",
+    "senior": "High regression risk on revenue paths."
+   },
+   "fix": {
+    "eli5": "Start with practice for the ticket counter.",
+    "teammate": "Add tests for orders and payments first.",
+    "senior": "Add vitest/jest + supertest with mongodb-memory-server; cover the webhook, amount calculation and stock decrement."
+   },
+   "evidence": [
+    {
+     "file": "package.json",
+     "line_start": 6,
+     "line_end": 7,
+     "quote": "\"start\": \"node src/server.js\",\n    \"dev\": \"nodemon src/server.js\"",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F10",
+   "severity": "cleanup",
+   "confidence": "verified",
+   "category": "performance",
+   "title_eli5": "Showing the stalls reads the whole scorebook every time",
+   "title": "GET /products has no pagination",
+   "explain": {
+    "eli5": "To show the stalls, the whole book is read out loud. Fine now, slow later.",
+    "teammate": "Product.find() returns every product in one response.",
+    "senior": "Unbounded find(); add limit/skip or cursor pagination plus a projection."
+   },
+   "why_it_matters": {
+    "eli5": "It gets slow when there are many stalls.",
+    "teammate": "Slow pages as the catalogue grows.",
+    "senior": "Linear growth in latency and payload."
+   },
+   "fix": {
+    "eli5": "Show one page of stalls at a time.",
+    "teammate": "Add ?page and ?limit.",
+    "senior": "Product.find().limit(limit).skip(offset).lean()"
+   },
+   "evidence": [
+    {
+     "file": "src/routes/products.js",
+     "line_start": 6,
+     "line_end": 6,
+     "quote": "const products = await Product.find();",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F11",
+   "severity": "cleanup",
+   "confidence": "verified",
+   "category": "config",
+   "title_eli5": "The locker list is missing some keys",
+   "title": "SMTP_HOST, SMTP_USER, SMTP_PASS are used but not documented",
+   "explain": {
+    "eli5": "The email announcer needs three keys, but the list of keys doesn't mention them.",
+    "teammate": ".env.example only lists MONGO_URL and PORT. The email service also needs SMTP_HOST, SMTP_USER and SMTP_PASS.",
+    "senior": "Undocumented env vars: SMTP_HOST, SMTP_USER, SMTP_PASS (plus the missing STRIPE_SECRET_KEY / JWT_SECRET once fixed)."
+   },
+   "why_it_matters": {
+    "eli5": "New helpers can't make the announcer work.",
+    "teammate": "New developers hit silent email failures.",
+    "senior": "Onboarding friction; misconfiguration in deploys."
+   },
+   "fix": {
+    "eli5": "Add the missing keys to the list.",
+    "teammate": "Add them to .env.example.",
+    "senior": "Document all env vars in .env.example and validate them at boot."
+   },
+   "evidence": [
+    {
+     "file": "src/services/email.js",
+     "line_start": 5,
+     "line_end": 5,
+     "quote": "auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "id": "F12",
+   "severity": "cleanup",
+   "confidence": "likely",
+   "category": "security",
+   "title_eli5": "Every website is allowed to talk to the stadium",
+   "title": "cors() enabled with default (allow-all) settings",
+   "explain": {
+    "eli5": "Any website can send messages to this stadium. Usually you only allow your own.",
+    "teammate": "app.use(cors()) allows requests from any origin. Since auth uses Bearer tokens (not cookies), the risk is moderate.",
+    "senior": "Default cors() → Access-Control-Allow-Origin: *. Lower risk with header tokens; restrict it to known origins anyway."
+   },
+   "why_it_matters": {
+    "eli5": "Strangers' websites can poke the stadium.",
+    "teammate": "Wider attack surface than needed.",
+    "senior": "Defense in depth."
+   },
+   "fix": {
+    "eli5": "Only let your own website in.",
+    "teammate": "Pass an allow-list of origins.",
+    "senior": "cors({ origin: process.env.CORS_ORIGINS.split(',') })"
+   },
+   "evidence": [
+    {
+     "file": "src/server.js",
+     "line_start": 9,
+     "line_end": 9,
+     "quote": "app.use(cors());",
+     "status": "verified"
+    }
+   ]
+  }
+ ],
+ "handover": {
+  "summary": {
+   "eli5": "Whoever built this stopped while building the refund window. The ticket counter needs its locks fixed before real fans arrive.",
+   "teammate": "There's no project history available, but the code shows the last unfinished job: refunds (an empty handler with a TODO). Before going live: fix the webhook verification, compute prices on the server, and protect product deletion.",
+   "senior": "History unavailable (scanned with --no-git). Code signals: an empty refund handler with a TODO, no product create/update endpoints, no login/signup (JWTs are issued elsewhere). Priority order: F1, F2, F3, F4, then F5–F7."
+  },
+  "in_progress": [
+   {
+    "title": "Refunds",
+    "explain": {
+     "eli5": "The refund window was being built but is still empty.",
+     "teammate": "Route and function exist, the body is a TODO.",
+     "senior": "POST /payments/refund wired to an empty refundOrder."
+    },
+    "files": [
+     "src/routes/payments.js"
+    ],
+    "evidence": [
+     {
+      "file": "src/routes/payments.js",
+      "line_start": 30,
+      "line_end": 30,
+      "quote": "// TODO: implement refunds",
+      "status": "verified"
+     }
+    ]
+   },
+   {
+    "title": "Managing products",
+    "explain": {
+     "eli5": "You can remove stalls but not add or change them.",
+     "teammate": "There's only a delete route; no create or update.",
+     "senior": "products.js exposes GET / and DELETE /:id only."
+    },
+    "files": [
+     "src/routes/products.js"
+    ],
+    "evidence": [
+     {
+      "file": "src/routes/products.js",
+      "line_start": 5,
+      "line_end": 5,
+      "quote": "router.get('/', async (req, res) => {",
+      "status": "verified"
+     }
+    ]
+   }
+  ],
+  "people": []
+ },
+ "run": {
+  "steps": [
+   {
+    "text": {
+     "eli5": "Get the stadium's tools.",
+     "teammate": "Install dependencies.",
+     "senior": "npm install"
+    },
+    "command": "npm install"
+   },
+   {
+    "text": {
+     "eli5": "Fill in the locker with keys.",
+     "teammate": "Copy .env.example to .env and fill it in. Add the SMTP_* values too.",
+     "senior": "cp .env.example .env; set MONGO_URL, PORT, SMTP_HOST, SMTP_USER, SMTP_PASS"
+    },
+    "command": "cp .env.example .env"
+   },
+   {
+    "text": {
+     "eli5": "Open the scorebook (start MongoDB).",
+     "teammate": "Run a local MongoDB.",
+     "senior": "MongoDB must be reachable at MONGO_URL"
+    },
+    "command": "docker run -d -p 27017:27017 mongo:7"
+   },
+   {
+    "text": {
+     "eli5": "Open the gates!",
+     "teammate": "Start the server in dev mode.",
+     "senior": "npm run dev (nodemon)"
+    },
+    "command": "npm run dev"
+   }
+  ],
+  "missing": [
+   "SMTP_HOST, SMTP_USER and SMTP_PASS are needed but not listed in .env.example",
+   "There's no way to create products through the API: you have to seed MongoDB by hand",
+   "There's no login endpoint: you need a JWT signed with the hardcoded secret to call protected routes",
+   "Stripe webhook setup (endpoint + signing secret) isn't documented"
+  ]
+ },
+ "glossary": [
+  {
+   "term": "API",
+   "eli5": "The stadium gates and the people behind them",
+   "real": "The set of URLs the app answers"
+  },
+  {
+   "term": "Route",
+   "eli5": "One gate with a sign on it",
+   "real": "A URL + method, like POST /orders"
+  },
+  {
+   "term": "JWT",
+   "eli5": "A fan's stamped pass",
+   "real": "A signed token that proves who you are"
+  },
+  {
+   "term": "Middleware",
+   "eli5": "The guard standing at a gate",
+   "real": "Code that runs before a route, like requireAuth"
+  },
+  {
+   "term": "MongoDB",
+   "eli5": "The official scorebook",
+   "real": "The database where products and orders are stored"
+  },
+  {
+   "term": "Stripe",
+   "eli5": "The bank behind the ticket counter",
+   "real": "The payment provider"
+  },
+  {
+   "term": "PaymentIntent",
+   "eli5": "Asking the bank 'please charge this fan'",
+   "real": "A Stripe object representing one payment attempt"
+  },
+  {
+   "term": "Webhook",
+   "eli5": "The bank's radio call to the scorer",
+   "real": "An HTTP call Stripe makes to us when something happens"
+  },
+  {
+   "term": "N+1 query",
+   "eli5": "Walking to the shelf once per item",
+   "real": "One database query per item inside a loop"
+  },
+  {
+   "term": "Environment variable",
+   "eli5": "A key kept in the locker",
+   "real": "A setting given to the app from outside the code"
+  }
+ ],
+ "faq": [
+  {
+   "q": "Can this take real payments today?",
+   "a": {
+    "eli5": "Not safely. The counter can be tricked about the price and about whether someone paid.",
+    "teammate": "No: fix F1 (webhook verification) and F2 (server-side amount) first.",
+    "senior": "No. The webhook is unauthenticated and the amount is client-controlled; both must be fixed before going live."
+   },
+   "evidence": [
+    {
+     "file": "src/routes/payments.js",
+     "line_start": 20,
+     "line_end": 20,
+     "quote": "const event = req.body;",
+     "status": "verified"
+    }
+   ]
+  },
+  {
+   "q": "What should I fix first?",
+   "a": {
+    "eli5": "The ticket counter locks, then the guard on the stall gate, then the refund room.",
+    "teammate": "F1 → F2 → F3 → F4, then move secrets to env vars (F5, F6).",
+    "senior": "Revenue and integrity first: F1, F2, F3, F4; then F5–F7; then tests (F9)."
+   }
+  },
+  {
+   "q": "Where would I add a new kind of thing to sell?",
+   "a": {
+    "eli5": "In the scorebook page for stall items.",
+    "teammate": "Extend the Product model and add create/update routes in products.js.",
+    "senior": "src/models/Product.js + new POST/PUT routes in src/routes/products.js (behind requireAuth + an admin check)."
+   },
+   "evidence": [
+    {
+     "file": "src/models/Product.js",
+     "line_start": 3,
+     "line_end": 3,
+     "quote": "const productSchema = new mongoose.Schema({",
+     "status": "verified"
+    }
+   ]
+  }
+ ]
+}
