@@ -1,10 +1,50 @@
-# Theme packs
+# Theme packs & casting guide
 
-Use a pack when the user's theme matches one (fuzzy match: "IPL" → cricket, "F1" → racing, "PUBG / Free Fire / Fortnite" → battle-royale, "Marvel / DC / Avengers" → superhero-movies, "iPhone / Android" → smartphone). For any other theme, build a map **in the same spirit**: pick things from that world a child would recognise, and make each analogy *explain the behaviour* of the part, not just sound cute.
+## Two kinds of theme
 
-Only use the rows for parts the project actually has. Change wording to fit the project, e.g. for a food-delivery app the "database" in cricket can be "the scorebook of every order".
+**1. A specific world** (a TV show, film or series, a game, a book, a league or team): **use its real cast.** Name the characters, places, objects and famous moments, and cast each one by the trait that matches the code's behaviour. Generic stand-ins ("the managing partner", "a hero", "the drop zone") are a failure when the user named a specific world.
 
-**Text only.** Refer to franchises by general concepts (a drop zone, a hero team, a pit stop), never by copied characters' lines, logos or long quotes.
+**2. A general topic** (cricket, cooking, cars, school, a city): use the packs below, written in the real vocabulary that people who love the topic use.
+
+Fuzzy matches to packs: "IPL" → cricket, "F1" → racing, "iPhone / Android" → smartphone.
+A specific game, show or team is case 1, even when a pack is close: "PUBG" still uses Erangel, Pochinki and the blue zone, not only the generic battle-royale pack.
+
+**Rules for both:**
+- Only use details a fan would recognise immediately. If unsure, look it up or leave it out. Never invent lore.
+- Cast by behaviour. The reader should learn what the code *does* from who plays it.
+- One cast member per part, used the same way everywhere.
+- Keep the project's own names (its AI persona, product names) and attach the cast role once: "Vela (the app's AI, played by Harvey)".
+- Allowed: names, roles, personalities, places, objects, and famous situations retold in your own words. Not allowed: logos, images, lyrics, scripts, long quotes.
+
+## Worked example: a specific TV show (*Suits*)
+
+Theme brief (what fans know): Pearson Hardman law firm in New York. **Harvey Specter**, the firm's best closer, wins the cases nobody else can. **Mike Ross** has a photographic memory and reads and remembers everything instantly (and secretly has no law degree). **Donna Paulsen**, Harvey's assistant, knows everything going on and decides who gets in to see Harvey. **Jessica Pearson**, the managing partner, has the final say over everyone. **Louis Litt** is obsessed with billable hours and the firm's money. **Rachel Zane** is the paralegal who digs up research. **Harold** is the clumsy junior associate. **Daniel Hardman** is the partner who secretly stole from the firm. Also: the file room, the associates' bullpen, and the mock trial.
+
+Casting for a typical web app:
+
+| Real part | Cast | Why it fits (the teaching point) |
+|---|---|---|
+| AI / core engine that produces the answer | Harvey Specter | Takes the hardest case and delivers the winning answer |
+| Text/image reading (OCR, parsing) | Mike Ross | Reads every page instantly and remembers it all |
+| Router / API entry | Donna Paulsen | Knows every request and decides who it goes to |
+| Admin panel | Jessica Pearson's office | Final say over everyone and everything in the firm |
+| Billing, usage limits, credits | Louis Litt | Counts every billable hour and charges for it |
+| Search / data lookups | Rachel Zane | Digs up exactly the records you ask for |
+| Database | The Pearson Hardman file room | Every case file is stored here |
+| Background jobs | Associates working overnight in the bullpen | Work done after hours, out of sight |
+| Tests | Mock trial | Practise the case before the real court |
+| Malicious code / insider threat | Daniel Hardman | Someone inside the firm, secretly working against it |
+| Hidden risk that could sink the project | Mike's fake law degree | A secret that, once found, threatens everything |
+| A bug | One of Harold's blunders | An honest mistake that causes a mess |
+
+Example sentence (eli5 + plain):
+- 🧒 "Louis Litt counts every case review a client uses. But if a client knocks on two doors at the same moment, Louis only counts one."
+- 👉 "Users who send two requests at the exact same time can get extra free analyses."
+
+## Worked example: a specific game (*PUBG*)
+
+Use real names: the plane drop, **Erangel** / **Miramar** maps, **Pochinki** (busy hot-drop town), **the blue zone** (shrinking safe area), **red zone** bombardment, **airdrops** (late, valuable supplies), **Level 3 helmet** (best protection), **backpack**, **revive**, **squad**, **"winner winner chicken dinner"**.
+Casting ideas: entry/router → the plane and drop choice; rate limiting → the blue zone squeezing players; background jobs → airdrops; auth → squad lobby invite; a security hole → a hacker with wall-hacks; a crash under load → everyone hot-dropping into Pochinki.
 
 ---
 

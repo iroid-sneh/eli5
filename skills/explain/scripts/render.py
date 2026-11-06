@@ -86,6 +86,8 @@ def md_report(r, out_dir, root):
         if isinstance(v, str) or v is None:
             return v or ""
         out = layer(v, "eli5")
+        if v.get("plain"):
+            out += f"\n\n> 👉 **In plain words:** {v['plain']}"
         extra = []
         if v.get("teammate") and v.get("teammate") != out:
             extra.append(f"<details><summary>🧑‍💻 Teammate version</summary>\n\n{v['teammate']}\n\n</details>")
@@ -157,7 +159,8 @@ def md_report(r, out_dir, root):
                 o.append(f"*{f['title']}*")
             o.append("\n" + layered(f.get("explain")))
             if f.get("why_it_matters"):
-                o.append("\n**Why it matters:** " + layer(f["why_it_matters"]))
+                w = f["why_it_matters"]
+                o.append("\n**Why it matters:** " + layer(w) + (f" *({w['plain']})*" if isinstance(w, dict) and w.get("plain") and w.get("plain") != layer(w) else ""))
             if f.get("fix"):
                 o.append("\n**🛠 How to fix:** " + layer(f["fix"], "senior"))
             o.append(evs(f).strip())

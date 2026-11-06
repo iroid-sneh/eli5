@@ -23,13 +23,15 @@
    "score": 100,
    "evidence_checked": 37,
    "evidence_failed": 0,
-   "checked_at": "2026-11-06T18:58:18"
-  }
+   "checked_at": "2026-11-06T19:50:34"
+  },
+  "theme_brief": "Cricket: real match-day vocabulary such as the umpires, the scorebook, the third umpire's replays, nets practice and a dropped catch."
  },
  "story": {
   "eli5": "Tiny Shop is a cricket stadium where fans buy things. Fans look at the stalls, pick items, and pay at the ticket counter. Most of the stadium is built. But the ticket counter can be tricked, anyone can knock down a stall, and the refund window is an empty room.",
   "teammate": "Tiny Shop is a small online shop backend: the stalls (products API), the scorer's desk (orders API) and the ticket counter (Stripe payments). The happy path works: list products, place an order, start a Stripe payment. The weak spots: the Stripe webhook trusts anyone, the price comes from the customer, product deletion has no login check, and refunds are an empty function.",
-  "senior": "Express 4 + Mongoose API with three routers (/products, /orders, /payments) and JWT auth middleware. Stripe PaymentIntents are created with a client-supplied amount; the webhook marks orders paid without signature verification; DELETE /products/:id is unauthenticated; /payments/refund is an empty async handler that never responds. No tests, no input validation, secrets hardcoded in two places."
+  "senior": "Express 4 + Mongoose API with three routers (/products, /orders, /payments) and JWT auth middleware. Stripe PaymentIntents are created with a client-supplied amount; the webhook marks orders paid without signature verification; DELETE /products/:id is unauthenticated; /payments/refund is an empty async handler that never responds. No tests, no input validation, secrets hardcoded in two places.",
+  "plain": "This is the server behind a small online shop. It lists products, saves orders and charges cards through Stripe. Three things are dangerous today: anyone can fake a 'payment succeeded' message, customers can choose their own price, and anyone can delete products. Refunds don't exist yet."
  },
  "theme_map": [
   {
@@ -138,7 +140,8 @@
    "explain": {
     "eli5": "The ticket counter takes money and asks the bank to charge the fan. But it lets the fan say the price, it believes any radio call that says 'paid', and the refund window has nobody inside.",
     "teammate": "Three endpoints: POST /checkout creates a Stripe PaymentIntent, POST /webhook marks an order 'paid' when Stripe says so, and POST /refund is wired to an empty function. Checkout works mechanically, but the amount comes from req.body and the webhook trusts its input.",
-    "senior": "POST /checkout → stripe.paymentIntents.create({ amount: req.body.amount }). POST /webhook parses req.body (already JSON-parsed by express.json()) and calls Order.findByIdAndUpdate(..., {status:'paid'}) with no stripe.webhooks.constructEvent. POST /refund → empty async refundOrder that never sends a response."
+    "senior": "POST /checkout → stripe.paymentIntents.create({ amount: req.body.amount }). POST /webhook parses req.body (already JSON-parsed by express.json()) and calls Order.findByIdAndUpdate(..., {status:'paid'}) with no stripe.webhooks.constructEvent. POST /refund → empty async refundOrder that never sends a response.",
+    "plain": "Card payments go through Stripe. Customers can set their own price, fake 'payment done' messages are accepted, and the refund button does nothing."
    },
    "depends_on": [
     "Orders (model)",
@@ -170,7 +173,8 @@
    "explain": {
     "eli5": "The scorer writes down what a fan picked and takes the items off the stall shelves. Then the announcer sends a receipt. It works, but it trusts the fan about the total and counts shelf items one by one.",
     "teammate": "POST /orders (login required) creates an order with the items and amount from the request, lowers stock for each product one at a time, and fires a receipt email. GET /orders/mine lists your own orders.",
-    "senior": "Order.create with client-supplied amount; per-item Product.findById + save inside a for-loop (N+1, no transaction, no null check, no stock floor); sendReceipt(...).catch(() => {}) swallows email errors. GET /mine filters by req.user.id (correct ownership check)."
+    "senior": "Order.create with client-supplied amount; per-item Product.findById + save inside a for-loop (N+1, no transaction, no null check, no stock floor); sendReceipt(...).catch(() => {}) swallows email errors. GET /mine filters by req.user.id (correct ownership check).",
+    "plain": "Orders are saved and stock is reduced. It works, but the order total comes from the customer, and stock can go below zero."
    },
    "depends_on": [
     "Scorebook (MongoDB)",
@@ -202,7 +206,8 @@
    "explain": {
     "eli5": "Anyone can look at the stalls, which is good. But anyone can also knock a stall down, without showing a pass.",
     "teammate": "GET /products lists every product (no paging). DELETE /products/:id deletes a product and is not behind requireAuth. There's no way to create or edit products through the API.",
-    "senior": "GET / → Product.find() unbounded. DELETE /:id → findByIdAndDelete with no auth or role check. No POST/PUT routes, so products must be inserted directly into the DB."
+    "senior": "GET / → Product.find() unbounded. DELETE /:id → findByIdAndDelete with no auth or role check. No POST/PUT routes, so products must be inserted directly into the DB.",
+    "plain": "Anyone can see the products, which is fine. Anyone can also delete products without logging in, which is not."
    },
    "depends_on": [
     "Scorebook (MongoDB)"
@@ -225,7 +230,8 @@
    "explain": {
     "eli5": "The guard checks each fan's pass. But the secret stamp used to make passes is written on the guard's hat, where anyone who reads the code can copy it.",
     "teammate": "requireAuth reads the Bearer token and verifies it with jsonwebtoken. The signing secret is the hardcoded string 'super-secret-jwt-key', so anyone with the code can make valid passes.",
-    "senior": "jwt.verify(token, 'super-secret-jwt-key'): secret in source, no algorithm pinning, no expiry enforcement beyond the token's own claims. There is no login/signup endpoint in this repo, so tokens must be issued elsewhere."
+    "senior": "jwt.verify(token, 'super-secret-jwt-key'): secret in source, no algorithm pinning, no expiry enforcement beyond the token's own claims. There is no login/signup endpoint in this repo, so tokens must be issued elsewhere.",
+    "plain": "Login checking works, but the secret used to create login tokens is written in the code, so anyone who sees the code can create fake logins."
    },
    "depends_on": [],
    "evidence": [
@@ -246,7 +252,8 @@
    "explain": {
     "eli5": "Two pages in the scorebook: one for things on sale, one for fans' orders.",
     "teammate": "Mongoose models: Product (name, price, stock) and Order (userId, items, amount, status = pending/paid).",
-    "senior": "Product {name, price, stock} and Order {userId, items[{productId, qty}], amount, status default 'pending'}. No validation, no indexes, userId is a plain String (no ref)."
+    "senior": "Product {name, price, stock} and Order {userId, items[{productId, qty}], amount, status default 'pending'}. No validation, no indexes, userId is a plain String (no ref).",
+    "plain": "The database stores two things: products (name, price, stock) and orders (who, what, total, paid or not)."
    },
    "depends_on": [],
    "evidence": [
@@ -267,7 +274,8 @@
    "explain": {
     "eli5": "The announcer tells fans their order is in. If the microphone breaks, nobody notices.",
     "teammate": "sendReceipt sends a plain-text email through SMTP (Nodemailer). The SMTP settings come from env vars that aren't listed in .env.example.",
-    "senior": "Nodemailer transport from SMTP_HOST/SMTP_USER/SMTP_PASS (undocumented). Caller swallows failures."
+    "senior": "Nodemailer transport from SMTP_HOST/SMTP_USER/SMTP_PASS (undocumented). Caller swallows failures.",
+    "plain": "After an order, a receipt email is sent. If sending fails, nobody is told."
    },
    "depends_on": [],
    "evidence": [
@@ -471,17 +479,19 @@
    "severity": "broken",
    "confidence": "verified",
    "category": "payments",
-   "title_eli5": "Anyone can shout 'he paid!' on the radio and the scorer believes them",
+   "title_eli5": "Anyone can fake a 'payment done' message, and the shop marks the order paid",
    "title": "Stripe webhook does not verify the signature",
    "explain": {
     "eli5": "When the bank radios 'paid!', the scorer writes 'paid' without checking it's really the bank. Anyone can pretend.",
     "teammate": "The webhook reads req.body and marks the order paid. It never checks Stripe's signature header, so anyone who knows the URL can mark any order as paid.",
-    "senior": "No stripe.webhooks.constructEvent(rawBody, sig, secret). express.json() runs globally, so the raw body needed for verification isn't even available on this route."
+    "senior": "No stripe.webhooks.constructEvent(rawBody, sig, secret). express.json() runs globally, so the raw body needed for verification isn't even available on this route.",
+    "plain": "Anyone who sends a fake 'payment succeeded' message to the shop's webhook address gets their order marked as paid without paying."
    },
    "why_it_matters": {
     "eli5": "People can get things for free.",
     "teammate": "Free orders for anyone who sends a fake request.",
-    "senior": "Direct revenue loss; order state can be forged."
+    "senior": "Direct revenue loss; order state can be forged.",
+    "plain": "People can get products for free."
    },
    "fix": {
     "eli5": "Check the bank's secret stamp on every radio call.",
@@ -503,17 +513,19 @@
    "severity": "broken",
    "confidence": "verified",
    "category": "payments",
-   "title_eli5": "The fan decides the ticket price themselves",
+   "title_eli5": "Customers choose their own price, and the shop charges it",
    "title": "Charge amount is taken from the client request",
    "explain": {
     "eli5": "The ticket counter asks the fan 'how much should I charge you?' and charges exactly that. A fan can say 1 rupee.",
     "teammate": "Both the order total and the Stripe charge use req.body.amount instead of adding up real product prices.",
-    "senior": "Order.amount and PaymentIntent.amount come from req.body; nothing recomputes from Product.price × qty."
+    "senior": "Order.amount and PaymentIntent.amount come from req.body; nothing recomputes from Product.price × qty.",
+    "plain": "The price charged to the card is whatever number the customer's app sends. Someone can pay ₹1 for a ₹10,000 order."
    },
    "why_it_matters": {
     "eli5": "Big things can be bought for tiny money.",
     "teammate": "Customers can pay any amount they want.",
-    "senior": "Price tampering → revenue loss."
+    "senior": "Price tampering → revenue loss.",
+    "plain": "The shop loses money on every tampered order."
    },
    "fix": {
     "eli5": "The counter should look up the real prices itself.",
@@ -542,17 +554,19 @@
    "severity": "broken",
    "confidence": "verified",
    "category": "auth",
-   "title_eli5": "Anyone can knock down a stall without showing a pass",
+   "title_eli5": "Anyone can delete products without logging in",
    "title": "DELETE /products/:id has no authentication",
    "explain": {
     "eli5": "Every other important gate has a guard. The 'remove a stall' gate has none.",
     "teammate": "The delete route isn't wrapped in requireAuth, and the router isn't mounted behind it either, so anyone can delete products.",
-    "senior": "products router has no auth middleware and is mounted bare at /products in server.js; DELETE /:id calls findByIdAndDelete directly. There are no admin roles anywhere."
+    "senior": "products router has no auth middleware and is mounted bare at /products in server.js; DELETE /:id calls findByIdAndDelete directly. There are no admin roles anywhere.",
+    "plain": "Anyone on the internet can delete any product with one request. No login is needed."
    },
    "why_it_matters": {
     "eli5": "Someone could empty the whole shop.",
     "teammate": "Any visitor can wipe the catalogue.",
-    "senior": "Unauthenticated destructive endpoint → data loss / vandalism."
+    "senior": "Unauthenticated destructive endpoint → data loss / vandalism.",
+    "plain": "A stranger could empty the whole catalogue."
    },
    "fix": {
     "eli5": "Put a guard, and only let managers in.",
@@ -581,17 +595,19 @@
    "severity": "broken",
    "confidence": "verified",
    "category": "unfinished",
-   "title_eli5": "The refund window is an empty room, and fans wait there forever",
+   "title_eli5": "The refund button does nothing, and the app freezes waiting",
    "title": "POST /payments/refund is an empty handler that never responds",
    "explain": {
     "eli5": "There's a refund sign and a door, but nobody inside. The fan just stands and waits.",
     "teammate": "refundOrder only has a TODO comment. It doesn't refund, doesn't update the order, and never sends a reply, so the request hangs.",
-    "senior": "Empty async function bound to a live route; no Stripe refunds.create, no status change, no response → client hangs until timeout."
+    "senior": "Empty async function bound to a live route; no Stripe refunds.create, no status change, no response → client hangs until timeout.",
+    "plain": "Asking for a refund does nothing and the request never gets an answer, so the app just keeps loading."
    },
    "why_it_matters": {
     "eli5": "Fans can't get money back.",
     "teammate": "Refunds are impossible and the app looks frozen.",
-    "senior": "Feature missing + hung connections; support has to refund manually in Stripe."
+    "senior": "Feature missing + hung connections; support has to refund manually in Stripe.",
+    "plain": "Customers can't get money back, and support must refund by hand in Stripe."
    },
    "fix": {
     "eli5": "Put someone in the room who can give money back.",
@@ -613,17 +629,19 @@
    "severity": "risky",
    "confidence": "verified",
    "category": "security",
-   "title_eli5": "The secret pass stamp is written on the guard's hat",
+   "title_eli5": "The login secret is written in the code, so logins can be faked",
    "title": "JWT secret is hardcoded in source",
    "explain": {
     "eli5": "Passes are made with a secret stamp. The stamp's pattern is written right in the code.",
     "teammate": "jwt.verify uses the literal string 'super-secret-jwt-key'. Anyone with the code can create valid login tokens.",
-    "senior": "Hardcoded HMAC secret; rotate and load from env (JWT_SECRET), pin algorithms: ['HS256']."
+    "senior": "Hardcoded HMAC secret; rotate and load from env (JWT_SECRET), pin algorithms: ['HS256'].",
+    "plain": "The secret key used to create login tokens is written in the code. Anyone who has seen the code can log in as any user."
    },
    "why_it_matters": {
     "eli5": "Anyone could make a fake pass.",
     "teammate": "Account takeover for any user id.",
-    "senior": "Token forgery → full auth bypass."
+    "senior": "Token forgery → full auth bypass.",
+    "plain": "Anyone with the code can take over any account."
    },
    "fix": {
     "eli5": "Keep the stamp in the locked locker.",
@@ -645,17 +663,19 @@
    "severity": "risky",
    "confidence": "verified",
    "category": "security",
-   "title_eli5": "The bank key is taped to the ticket counter",
+   "title_eli5": "The Stripe key is written in the code",
    "title": "Stripe secret key hardcoded in payments.js",
    "explain": {
     "eli5": "The key to the bank is written in the code instead of being locked in the locker.",
     "teammate": "The Stripe client is created with a key written in the file (a test key here, value hidden). It should come from an env var.",
-    "senior": "new Stripe('<masked test key>'): move to STRIPE_SECRET_KEY, and rotate the key if this repo was ever public."
+    "senior": "new Stripe('<masked test key>'): move to STRIPE_SECRET_KEY, and rotate the key if this repo was ever public.",
+    "plain": "The Stripe key (a test key here) is written directly in the code instead of a protected settings file."
    },
    "why_it_matters": {
     "eli5": "If it were a real key, anyone could use the bank.",
     "teammate": "Keys in code leak through repos and screenshots.",
-    "senior": "Secret leakage; easy to accidentally ship a live key."
+    "senior": "Secret leakage; easy to accidentally ship a live key.",
+    "plain": "If a real key ends up there, anyone who sees the code can use the shop's Stripe account."
    },
    "fix": {
     "eli5": "Move the key into the locker.",
@@ -677,17 +697,19 @@
    "severity": "risky",
    "confidence": "verified",
    "category": "data",
-   "title_eli5": "Shelves are counted one item at a time, and can go below zero",
+   "title_eli5": "Stock can go below zero, and big orders are slow",
    "title": "Stock update is N+1, non-atomic, and unchecked",
    "explain": {
     "eli5": "For each item, the scorer walks to the shelf, takes one off, and walks back. Two fans at once can grab the last snack, and the shelf can say -1.",
     "teammate": "Stock is lowered in a loop with one database trip per item, with no check that enough stock exists, and no protection when two orders happen at the same time.",
-    "senior": "findById + save per item: N+1 round trips, a read-modify-write race, no stock >= qty guard, and a TypeError if a productId is unknown (product is null). The order is created before stock is checked."
+    "senior": "findById + save per item: N+1 round trips, a read-modify-write race, no stock >= qty guard, and a TypeError if a productId is unknown (product is null). The order is created before stock is checked.",
+    "plain": "Two people can buy the last item at the same time, and stock can go negative. Each item in the cart costs a separate database trip."
    },
    "why_it_matters": {
     "eli5": "You can sell snacks you don't have.",
     "teammate": "Overselling and slow checkouts for big carts.",
-    "senior": "Data integrity + latency; crashes on bad ids."
+    "senior": "Data integrity + latency; crashes on bad ids.",
+    "plain": "The shop can sell items it doesn't have."
    },
    "fix": {
     "eli5": "Check the shelf first, and change it in one go.",
@@ -709,17 +731,19 @@
    "severity": "risky",
    "confidence": "verified",
    "category": "reliability",
-   "title_eli5": "If the announcer's microphone breaks, nobody finds out",
+   "title_eli5": "If the receipt email fails, nobody finds out",
    "title": "Receipt email errors are silently swallowed",
    "explain": {
     "eli5": "The receipt is shouted out, but if it fails, the mistake is thrown in the bin.",
     "teammate": "sendReceipt(...).catch(() => {}) hides every email failure, with no log and no retry.",
-    "senior": "Fire-and-forget with an empty catch; no logging, retry or outbox."
+    "senior": "Fire-and-forget with an empty catch; no logging, retry or outbox.",
+    "plain": "If the receipt email fails to send, the error is thrown away. No log, no retry."
    },
    "why_it_matters": {
     "eli5": "Fans don't get receipts and nobody knows why.",
     "teammate": "Silent failures are hard to debug.",
-    "senior": "Lost notifications, zero observability."
+    "senior": "Lost notifications, zero observability.",
+    "plain": "Customers miss receipts and nobody knows why."
    },
    "fix": {
     "eli5": "Write it down when the mic fails.",
@@ -741,17 +765,19 @@
    "severity": "risky",
    "confidence": "verified",
    "category": "tests",
-   "title_eli5": "No nets practice: the team has never trained before a match",
+   "title_eli5": "There are no automated tests, even for payments",
    "title": "No automated tests, while money is handled",
    "explain": {
     "eli5": "There's no practice at all. Every match is the first try.",
     "teammate": "There are no test files and no test script, yet the app takes payments.",
-    "senior": "No test runner in package.json and no test files; payment and stock logic are untested."
+    "senior": "No test runner in package.json and no test files; payment and stock logic are untested.",
+    "plain": "There are no automated tests at all, even for the payment code."
    },
    "why_it_matters": {
     "eli5": "Mistakes are found by real fans.",
     "teammate": "Every change can break checkout without anyone noticing.",
-    "senior": "High regression risk on revenue paths."
+    "senior": "High regression risk on revenue paths.",
+    "plain": "Any change can break checkout without anyone noticing until customers complain."
    },
    "fix": {
     "eli5": "Start with practice for the ticket counter.",
@@ -773,17 +799,19 @@
    "severity": "cleanup",
    "confidence": "verified",
    "category": "performance",
-   "title_eli5": "Showing the stalls reads the whole scorebook every time",
+   "title_eli5": "The product list loads every product at once",
    "title": "GET /products has no pagination",
    "explain": {
     "eli5": "To show the stalls, the whole book is read out loud. Fine now, slow later.",
     "teammate": "Product.find() returns every product in one response.",
-    "senior": "Unbounded find(); add limit/skip or cursor pagination plus a projection."
+    "senior": "Unbounded find(); add limit/skip or cursor pagination plus a projection.",
+    "plain": "The product list loads every product in one go, with no pages."
    },
    "why_it_matters": {
     "eli5": "It gets slow when there are many stalls.",
     "teammate": "Slow pages as the catalogue grows.",
-    "senior": "Linear growth in latency and payload."
+    "senior": "Linear growth in latency and payload.",
+    "plain": "It will get slow as the catalogue grows."
    },
    "fix": {
     "eli5": "Show one page of stalls at a time.",
@@ -805,17 +833,19 @@
    "severity": "cleanup",
    "confidence": "verified",
    "category": "config",
-   "title_eli5": "The locker list is missing some keys",
+   "title_eli5": "Email settings are missing from the setup list",
    "title": "SMTP_HOST, SMTP_USER, SMTP_PASS are used but not documented",
    "explain": {
     "eli5": "The email announcer needs three keys, but the list of keys doesn't mention them.",
     "teammate": ".env.example only lists MONGO_URL and PORT. The email service also needs SMTP_HOST, SMTP_USER and SMTP_PASS.",
-    "senior": "Undocumented env vars: SMTP_HOST, SMTP_USER, SMTP_PASS (plus the missing STRIPE_SECRET_KEY / JWT_SECRET once fixed)."
+    "senior": "Undocumented env vars: SMTP_HOST, SMTP_USER, SMTP_PASS (plus the missing STRIPE_SECRET_KEY / JWT_SECRET once fixed).",
+    "plain": "The email service needs three settings (SMTP_HOST, SMTP_USER, SMTP_PASS) that the setup file doesn't mention."
    },
    "why_it_matters": {
     "eli5": "New helpers can't make the announcer work.",
     "teammate": "New developers hit silent email failures.",
-    "senior": "Onboarding friction; misconfiguration in deploys."
+    "senior": "Onboarding friction; misconfiguration in deploys.",
+    "plain": "New developers set the app up and emails silently fail."
    },
    "fix": {
     "eli5": "Add the missing keys to the list.",
@@ -837,17 +867,19 @@
    "severity": "cleanup",
    "confidence": "likely",
    "category": "security",
-   "title_eli5": "Every website is allowed to talk to the stadium",
+   "title_eli5": "Any website is allowed to call this server",
    "title": "cors() enabled with default (allow-all) settings",
    "explain": {
     "eli5": "Any website can send messages to this stadium. Usually you only allow your own.",
     "teammate": "app.use(cors()) allows requests from any origin. Since auth uses Bearer tokens (not cookies), the risk is moderate.",
-    "senior": "Default cors() → Access-Control-Allow-Origin: *. Lower risk with header tokens; restrict it to known origins anyway."
+    "senior": "Default cors() → Access-Control-Allow-Origin: *. Lower risk with header tokens; restrict it to known origins anyway.",
+    "plain": "Any website is allowed to send requests to this server. Logins use tokens, not cookies, so the risk is limited."
    },
    "why_it_matters": {
     "eli5": "Strangers' websites can poke the stadium.",
     "teammate": "Wider attack surface than needed.",
-    "senior": "Defense in depth."
+    "senior": "Defense in depth.",
+    "plain": "Wider exposure than needed."
    },
    "fix": {
     "eli5": "Only let your own website in.",

@@ -63,7 +63,8 @@ ELI5 Repo gives you that understanding in minutes, in a language you already lov
 
 ## ✨ What makes it different
 
-- 🎨 **Your theme, for the whole project.** Not one cute analogy, but a consistent cast: the database is *always* the scorebook and payments are *always* the ticket counter. 10 built-in theme packs, and any other topic works too.
+- 🎨 **Your theme, for the whole project, with its real cast.** Name a show, game or film and it learns that world first, then casts each part of your code by personality. In *Suits*, Louis Litt (obsessed with billable hours) plays your usage limits and Donna (knows everything, decides who sees Harvey) plays your router. The same role is used everywhere. 10 built-in theme packs, and any other topic works too.
+- 👉 **Never lost in the metaphor.** Every kid-level explanation is followed by an **"In plain words"** line that says exactly what happens to real users, with no theme and no jargon.
 - 🚨 **The uncomfortable truth.** A dedicated section for what's 🔴 broken, 🟠 risky, 🟡 unfinished or 🔵 needs cleanup: fake payment confirmations, unprotected delete routes, empty handlers, SQL injection, N+1 queries, swallowed errors, hardcoded secrets…
 - 📎 **Proof for every claim.** Each statement links to an exact `file:line` with a quote. A checker that uses **no AI** opens every file, confirms every quote, fixes shifted line numbers, flags anything unproven, and shows a **Trust Score**.
 - 🧒🧑‍💻🧠 **Three depths in one report.** Flip between *Like I'm 5*, *Teammate* and *Senior* with one click.
@@ -183,7 +184,7 @@ python3 skills/explain/scripts/render.py report.json
 | 🏏 Cricket | ⚽ Football | 🚗 Cars | 🏎️ Racing / F1 | 🎯 Battle-royale games |
 | 🦸 Superhero movies | 🍳 Restaurant / cooking | 📱 Smartphone | 🏫 School | 🏙️ City (default) |
 
-Anything else works too: *Harry-Potter-style wizard school*, *a train station*, *your grandma's kitchen*. Claude builds the map on the fly, following the same rules. Themes are text-only and use general concepts, never copied characters, logos or quotes.
+Anything else works too: a TV show (*Suits*, *Breaking Bad*), a game (*PUBG*, *Minecraft*), a film series, a team, *your grandma's kitchen*. For a specific world, Claude first learns its characters, places and famous moments, then casts your code with them by name. Themes are text-only: names and roles retold in Claude's own words, never logos, images or long quotes.
 
 ## 🚨 What it checks
 

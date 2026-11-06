@@ -6,6 +6,8 @@
 
 Tiny Shop is a cricket stadium where fans buy things. Fans look at the stalls, pick items, and pay at the ticket counter. Most of the stadium is built. But the ticket counter can be tricked, anyone can knock down a stall, and the refund window is an empty room.
 
+> 👉 **In plain words:** This is the server behind a small online shop. It lists products, saves orders and charges cards through Stripe. Three things are dangerous today: anyone can fake a 'payment succeeded' message, customers can choose their own price, and anyone can delete products. Refunds don't exist yet.
+
 <details><summary>🧑‍💻 Teammate version</summary>
 
 Tiny Shop is a small online shop backend: the stalls (products API), the scorer's desk (orders API) and the ticket counter (Stripe payments). The happy path works: list products, place an order, start a Stripe payment. The weak spots: the Stripe webhook trusts anyone, the price comes from the customer, product deletion has no login check, and refunds are an empty function.
@@ -73,6 +75,8 @@ flowchart LR
 
 The ticket counter takes money and asks the bank to charge the fan. But it lets the fan say the price, it believes any radio call that says 'paid', and the refund window has nobody inside.
 
+> 👉 **In plain words:** Card payments go through Stripe. Customers can set their own price, fake 'payment done' messages are accepted, and the refund button does nothing.
+
 <details><summary>🧑‍💻 Teammate version</summary>
 
 Three endpoints: POST /checkout creates a Stripe PaymentIntent, POST /webhook marks an order 'paid' when Stripe says so, and POST /refund is wired to an empty function. Checkout works mechanically, but the amount comes from req.body and the webhook trusts its input.
@@ -90,6 +94,8 @@ POST /checkout → stripe.paymentIntents.create({ amount: req.body.amount }). PO
 **The scorer's desk** · `src/routes/orders.js`
 
 The scorer writes down what a fan picked and takes the items off the stall shelves. Then the announcer sends a receipt. It works, but it trusts the fan about the total and counts shelf items one by one.
+
+> 👉 **In plain words:** Orders are saved and stock is reduced. It works, but the order total comes from the customer, and stock can go below zero.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -109,6 +115,8 @@ Order.create with client-supplied amount; per-item Product.findById + save insid
 
 Anyone can look at the stalls, which is good. But anyone can also knock a stall down, without showing a pass.
 
+> 👉 **In plain words:** Anyone can see the products, which is fine. Anyone can also delete products without logging in, which is not.
+
 <details><summary>🧑‍💻 Teammate version</summary>
 
 GET /products lists every product (no paging). DELETE /products/:id deletes a product and is not behind requireAuth. There's no way to create or edit products through the API.
@@ -126,6 +134,8 @@ GET / → Product.find() unbounded. DELETE /:id → findByIdAndDelete with no au
 **Security at the gate checking passes** · `src/middleware/auth.js`
 
 The guard checks each fan's pass. But the secret stamp used to make passes is written on the guard's hat, where anyone who reads the code can copy it.
+
+> 👉 **In plain words:** Login checking works, but the secret used to create login tokens is written in the code, so anyone who sees the code can create fake logins.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -145,6 +155,8 @@ jwt.verify(token, 'super-secret-jwt-key'): secret in source, no algorithm pinnin
 
 Two pages in the scorebook: one for things on sale, one for fans' orders.
 
+> 👉 **In plain words:** The database stores two things: products (name, price, stock) and orders (who, what, total, paid or not).
+
 <details><summary>🧑‍💻 Teammate version</summary>
 
 Mongoose models: Product (name, price, stock) and Order (userId, items, amount, status = pending/paid).
@@ -162,6 +174,8 @@ Product {name, price, stock} and Order {userId, items[{productId, qty}], amount,
 **The stadium announcer** · `src/services/email.js`
 
 The announcer tells fans their order is in. If the microphone breaks, nobody notices.
+
+> 👉 **In plain words:** After an order, a receipt email is sent. If sending fails, nobody is told.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -242,23 +256,25 @@ erDiagram
 
 | # | Severity | What's wrong | Confidence |
 |---|---|---|---|
-| 1 | 🔴 Broken | Anyone can shout 'he paid!' on the radio and the scorer believes them | verified |
-| 2 | 🔴 Broken | The fan decides the ticket price themselves | verified |
-| 3 | 🔴 Broken | Anyone can knock down a stall without showing a pass | verified |
-| 4 | 🔴 Broken | The refund window is an empty room, and fans wait there forever | verified |
-| 5 | 🟠 Risky | The secret pass stamp is written on the guard's hat | verified |
-| 6 | 🟠 Risky | The bank key is taped to the ticket counter | verified |
-| 7 | 🟠 Risky | Shelves are counted one item at a time, and can go below zero | verified |
-| 8 | 🟠 Risky | If the announcer's microphone breaks, nobody finds out | verified |
-| 9 | 🟠 Risky | No nets practice: the team has never trained before a match | verified |
-| 10 | 🔵 Cleanup | Showing the stalls reads the whole scorebook every time | verified |
-| 11 | 🔵 Cleanup | The locker list is missing some keys | verified |
-| 12 | 🔵 Cleanup | Every website is allowed to talk to the stadium | likely |
+| 1 | 🔴 Broken | Anyone can fake a 'payment done' message, and the shop marks the order paid | verified |
+| 2 | 🔴 Broken | Customers choose their own price, and the shop charges it | verified |
+| 3 | 🔴 Broken | Anyone can delete products without logging in | verified |
+| 4 | 🔴 Broken | The refund button does nothing, and the app freezes waiting | verified |
+| 5 | 🟠 Risky | The login secret is written in the code, so logins can be faked | verified |
+| 6 | 🟠 Risky | The Stripe key is written in the code | verified |
+| 7 | 🟠 Risky | Stock can go below zero, and big orders are slow | verified |
+| 8 | 🟠 Risky | If the receipt email fails, nobody finds out | verified |
+| 9 | 🟠 Risky | There are no automated tests, even for payments | verified |
+| 10 | 🔵 Cleanup | The product list loads every product at once | verified |
+| 11 | 🔵 Cleanup | Email settings are missing from the setup list | verified |
+| 12 | 🔵 Cleanup | Any website is allowed to call this server | likely |
 
-### 1. 🔴 Broken: Anyone can shout 'he paid!' on the radio and the scorer believes them
+### 1. 🔴 Broken: Anyone can fake a 'payment done' message, and the shop marks the order paid
 *Stripe webhook does not verify the signature*
 
 When the bank radios 'paid!', the scorer writes 'paid' without checking it's really the bank. Anyone can pretend.
+
+> 👉 **In plain words:** Anyone who sends a fake 'payment succeeded' message to the shop's webhook address gets their order marked as paid without paying.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -271,15 +287,17 @@ No stripe.webhooks.constructEvent(rawBody, sig, secret). express.json() runs glo
 
 </details>
 
-**Why it matters:** People can get things for free.
+**Why it matters:** People can get things for free. *(People can get products for free.)*
 
 **🛠 How to fix:** Mount the webhook with express.raw({type:'application/json'}) before express.json(), verify with stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET), and make the handler idempotent.
 📎 Proof: [`src/routes/payments.js:19-20`](../../fixtures/shop/src/routes/payments.js#L19)
 
-### 2. 🔴 Broken: The fan decides the ticket price themselves
+### 2. 🔴 Broken: Customers choose their own price, and the shop charges it
 *Charge amount is taken from the client request*
 
 The ticket counter asks the fan 'how much should I charge you?' and charges exactly that. A fan can say 1 rupee.
+
+> 👉 **In plain words:** The price charged to the card is whatever number the customer's app sends. Someone can pay ₹1 for a ₹10,000 order.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -292,15 +310,17 @@ Order.amount and PaymentIntent.amount come from req.body; nothing recomputes fro
 
 </details>
 
-**Why it matters:** Big things can be bought for tiny money.
+**Why it matters:** Big things can be bought for tiny money. *(The shop loses money on every tampered order.)*
 
 **🛠 How to fix:** Load products by id, compute sum(price*qty) server-side, store it on the Order, and create the PaymentIntent from the stored order amount (accept only orderId from the client).
 📎 Proof: [`src/routes/payments.js:11`](../../fixtures/shop/src/routes/payments.js#L11) · [`src/routes/orders.js:9`](../../fixtures/shop/src/routes/orders.js#L9)
 
-### 3. 🔴 Broken: Anyone can knock down a stall without showing a pass
+### 3. 🔴 Broken: Anyone can delete products without logging in
 *DELETE /products/:id has no authentication*
 
 Every other important gate has a guard. The 'remove a stall' gate has none.
+
+> 👉 **In plain words:** Anyone on the internet can delete any product with one request. No login is needed.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -313,15 +333,17 @@ products router has no auth middleware and is mounted bare at /products in serve
 
 </details>
 
-**Why it matters:** Someone could empty the whole shop.
+**Why it matters:** Someone could empty the whole shop. *(A stranger could empty the whole catalogue.)*
 
 **🛠 How to fix:** router.delete('/:id', requireAuth, requireRole('admin'), ...); add a role claim to the JWT.
 📎 Proof: [`src/routes/products.js:10`](../../fixtures/shop/src/routes/products.js#L10) · [`src/server.js:12`](../../fixtures/shop/src/server.js#L12)
 
-### 4. 🔴 Broken: The refund window is an empty room, and fans wait there forever
+### 4. 🔴 Broken: The refund button does nothing, and the app freezes waiting
 *POST /payments/refund is an empty handler that never responds*
 
 There's a refund sign and a door, but nobody inside. The fan just stands and waits.
+
+> 👉 **In plain words:** Asking for a refund does nothing and the request never gets an answer, so the app just keeps loading.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -334,15 +356,17 @@ Empty async function bound to a live route; no Stripe refunds.create, no status 
 
 </details>
 
-**Why it matters:** Fans can't get money back.
+**Why it matters:** Fans can't get money back. *(Customers can't get money back, and support must refund by hand in Stripe.)*
 
 **🛠 How to fix:** Check ownership and status, call stripe.refunds.create({ payment_intent }), set status 'refunded', respond 200. Until then, return 501.
 📎 Proof: [`src/routes/payments.js:29-31`](../../fixtures/shop/src/routes/payments.js#L29)
 
-### 5. 🟠 Risky: The secret pass stamp is written on the guard's hat
+### 5. 🟠 Risky: The login secret is written in the code, so logins can be faked
 *JWT secret is hardcoded in source*
 
 Passes are made with a secret stamp. The stamp's pattern is written right in the code.
+
+> 👉 **In plain words:** The secret key used to create login tokens is written in the code. Anyone who has seen the code can log in as any user.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -355,15 +379,17 @@ Hardcoded HMAC secret; rotate and load from env (JWT_SECRET), pin algorithms: ['
 
 </details>
 
-**Why it matters:** Anyone could make a fake pass.
+**Why it matters:** Anyone could make a fake pass. *(Anyone with the code can take over any account.)*
 
 **🛠 How to fix:** jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] }); document JWT_SECRET in .env.example.
 📎 Proof: [`src/middleware/auth.js:6`](../../fixtures/shop/src/middleware/auth.js#L6)
 
-### 6. 🟠 Risky: The bank key is taped to the ticket counter
+### 6. 🟠 Risky: The Stripe key is written in the code
 *Stripe secret key hardcoded in payments.js*
 
 The key to the bank is written in the code instead of being locked in the locker.
+
+> 👉 **In plain words:** The Stripe key (a test key here) is written directly in the code instead of a protected settings file.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -376,15 +402,17 @@ new Stripe('<masked test key>'): move to STRIPE_SECRET_KEY, and rotate the key i
 
 </details>
 
-**Why it matters:** If it were a real key, anyone could use the bank.
+**Why it matters:** If it were a real key, anyone could use the bank. *(If a real key ends up there, anyone who sees the code can use the shop's Stripe account.)*
 
 **🛠 How to fix:** new Stripe(process.env.STRIPE_SECRET_KEY); add it to .env.example; scan history for leaked keys.
 📎 Proof: [`src/routes/payments.js:6`](../../fixtures/shop/src/routes/payments.js#L6)
 
-### 7. 🟠 Risky: Shelves are counted one item at a time, and can go below zero
+### 7. 🟠 Risky: Stock can go below zero, and big orders are slow
 *Stock update is N+1, non-atomic, and unchecked*
 
 For each item, the scorer walks to the shelf, takes one off, and walks back. Two fans at once can grab the last snack, and the shelf can say -1.
+
+> 👉 **In plain words:** Two people can buy the last item at the same time, and stock can go negative. Each item in the cart costs a separate database trip.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -397,15 +425,17 @@ findById + save per item: N+1 round trips, a read-modify-write race, no stock >=
 
 </details>
 
-**Why it matters:** You can sell snacks you don't have.
+**Why it matters:** You can sell snacks you don't have. *(The shop can sell items it doesn't have.)*
 
 **🛠 How to fix:** Product.updateOne({ _id, stock: { $gte: qty } }, { $inc: { stock: -qty } }) or bulkWrite inside a transaction; validate the items before creating the order.
 📎 Proof: [`src/routes/orders.js:11-12`](../../fixtures/shop/src/routes/orders.js#L11)
 
-### 8. 🟠 Risky: If the announcer's microphone breaks, nobody finds out
+### 8. 🟠 Risky: If the receipt email fails, nobody finds out
 *Receipt email errors are silently swallowed*
 
 The receipt is shouted out, but if it fails, the mistake is thrown in the bin.
+
+> 👉 **In plain words:** If the receipt email fails to send, the error is thrown away. No log, no retry.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -418,15 +448,17 @@ Fire-and-forget with an empty catch; no logging, retry or outbox.
 
 </details>
 
-**Why it matters:** Fans don't get receipts and nobody knows why.
+**Why it matters:** Fans don't get receipts and nobody knows why. *(Customers miss receipts and nobody knows why.)*
 
 **🛠 How to fix:** .catch(err => logger.error({ err, orderId }, 'receipt failed')) or push to a job queue.
 📎 Proof: [`src/routes/orders.js:15`](../../fixtures/shop/src/routes/orders.js#L15)
 
-### 9. 🟠 Risky: No nets practice: the team has never trained before a match
+### 9. 🟠 Risky: There are no automated tests, even for payments
 *No automated tests, while money is handled*
 
 There's no practice at all. Every match is the first try.
+
+> 👉 **In plain words:** There are no automated tests at all, even for the payment code.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -439,15 +471,17 @@ No test runner in package.json and no test files; payment and stock logic are un
 
 </details>
 
-**Why it matters:** Mistakes are found by real fans.
+**Why it matters:** Mistakes are found by real fans. *(Any change can break checkout without anyone noticing until customers complain.)*
 
 **🛠 How to fix:** Add vitest/jest + supertest with mongodb-memory-server; cover the webhook, amount calculation and stock decrement.
 📎 Proof: [`package.json:6-7`](../../fixtures/shop/package.json#L6)
 
-### 10. 🔵 Cleanup: Showing the stalls reads the whole scorebook every time
+### 10. 🔵 Cleanup: The product list loads every product at once
 *GET /products has no pagination*
 
 To show the stalls, the whole book is read out loud. Fine now, slow later.
+
+> 👉 **In plain words:** The product list loads every product in one go, with no pages.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -460,15 +494,17 @@ Unbounded find(); add limit/skip or cursor pagination plus a projection.
 
 </details>
 
-**Why it matters:** It gets slow when there are many stalls.
+**Why it matters:** It gets slow when there are many stalls. *(It will get slow as the catalogue grows.)*
 
 **🛠 How to fix:** Product.find().limit(limit).skip(offset).lean()
 📎 Proof: [`src/routes/products.js:6`](../../fixtures/shop/src/routes/products.js#L6)
 
-### 11. 🔵 Cleanup: The locker list is missing some keys
+### 11. 🔵 Cleanup: Email settings are missing from the setup list
 *SMTP_HOST, SMTP_USER, SMTP_PASS are used but not documented*
 
 The email announcer needs three keys, but the list of keys doesn't mention them.
+
+> 👉 **In plain words:** The email service needs three settings (SMTP_HOST, SMTP_USER, SMTP_PASS) that the setup file doesn't mention.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -481,15 +517,17 @@ Undocumented env vars: SMTP_HOST, SMTP_USER, SMTP_PASS (plus the missing STRIPE_
 
 </details>
 
-**Why it matters:** New helpers can't make the announcer work.
+**Why it matters:** New helpers can't make the announcer work. *(New developers set the app up and emails silently fail.)*
 
 **🛠 How to fix:** Document all env vars in .env.example and validate them at boot.
 📎 Proof: [`src/services/email.js:5`](../../fixtures/shop/src/services/email.js#L5)
 
-### 12. 🔵 Cleanup: Every website is allowed to talk to the stadium
+### 12. 🔵 Cleanup: Any website is allowed to call this server
 *cors() enabled with default (allow-all) settings*
 
 Any website can send messages to this stadium. Usually you only allow your own.
+
+> 👉 **In plain words:** Any website is allowed to send requests to this server. Logins use tokens, not cookies, so the risk is limited.
 
 <details><summary>🧑‍💻 Teammate version</summary>
 
@@ -502,7 +540,7 @@ Default cors() → Access-Control-Allow-Origin: *. Lower risk with header tokens
 
 </details>
 
-**Why it matters:** Strangers' websites can poke the stadium.
+**Why it matters:** Strangers' websites can poke the stadium. *(Wider exposure than needed.)*
 
 **🛠 How to fix:** cors({ origin: process.env.CORS_ORIGINS.split(',') })
 📎 Proof: [`src/server.js:9`](../../fixtures/shop/src/server.js#L9)

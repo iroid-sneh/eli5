@@ -81,10 +81,10 @@ The scanner gives **hints**. A finding only goes in the report after you have **
 
 ## Writing a finding
 
-- `title_eli5`: theme language, ≤14 words, describes the consequence. "Anyone can shout 'he paid!' and the ticket counter believes them."
+- `title_eli5`: ≤14 words, **understandable on its own in one read**: theme hook + real consequence. ✅ "Anyone can fake a 'payment done' message, and the shop believes it." ❌ "The radio call is never checked" (a riddle).
 - `title`: precise and technical. "Stripe webhook does not verify signatures".
-- `explain`: what is happening, at three depths.
-- `why_it_matters`: the real-world consequence (money lost, data leaked, users stuck, slow at 10k rows).
+- `explain`: what is happening, at three depths **plus `plain`**: one or two everyday sentences saying exactly what can happen and to whom.
+- `why_it_matters`: the real-world consequence (money lost, data leaked, users stuck, slow at 10k rows), with a `plain` line too.
 - `fix`: concrete. The 🧠 layer names the API, pattern or file to change.
 - `evidence`: the exact quote(s) that show the problem. For "missing X" findings, quote the place where X should be (e.g. the webhook handler that has no verification), and say in the text what is absent.
 

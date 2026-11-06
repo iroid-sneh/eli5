@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
+<script>try{var m=localStorage.getItem('eli5-mode');if(m==='dark'||m==='light')document.documentElement.setAttribute('data-theme',m)}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -51,7 +52,16 @@ button{font:inherit;color:inherit}
 .ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 select,input[type=search]{font:inherit;font-size:.9rem;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:7px 10px}
 input[type=search]{width:180px}
-.iconbtn{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:6px 10px;cursor:pointer}
+/* theme switch: round 44px button; presses down to .97 and its icon dips to .72, then springs back */
+.modebtn{width:44px;height:44px;flex:none;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;padding:0;
+  transition-property:color,background-color,border-color,scale;transition-duration:120ms;transition-timing-function:cubic-bezier(.2,.8,.2,1)}
+.modebtn:hover{color:var(--text);border-color:color-mix(in srgb,var(--text) 28%,var(--border))}
+.modebtn:active{scale:.97}
+.modebtn svg{transition:scale 450ms cubic-bezier(.34,1.56,.64,1)}
+.modebtn:active svg{scale:.72;transition-duration:90ms}
+/* the browser keeps a picture of the old theme; only the growing circle moves (no default cross-fade) */
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+@media (prefers-reduced-motion: reduce){.modebtn,.modebtn svg{transition:none}}
 /* layout */
 .wrap{max-width:1240px;margin:0 auto;padding:24px 16px 80px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:32px}
 nav.side{position:sticky;top:84px;align-self:start;display:flex;flex-direction:column;gap:2px}
@@ -95,6 +105,9 @@ h3{font-size:1.1rem;margin:0}
 .role{color:var(--accent);font-weight:800;font-size:.93rem}
 .meta{color:var(--muted);font-size:.86rem}
 .txt p{margin:.4em 0}
+.plain{margin:10px 0 2px;padding:9px 12px 9px 14px;border-radius:10px;background:var(--accent-soft);border-left:3px solid var(--accent);font-size:.95em}
+.plain .pl{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:var(--accent);margin-bottom:2px}
+.plain p{margin:0}
 .label{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;margin-top:12px}
 /* evidence */
 .evs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
@@ -165,7 +178,7 @@ body[data-depth="senior"] .d:not(.d-senior){display:none}
     </div>
     <select id="themeSel" aria-label="Theme" class="hidden"></select>
     <input type="search" id="q" placeholder="Search…" aria-label="Search the report">
-    <button class="iconbtn" id="modeBtn" title="Toggle dark mode" aria-label="Toggle dark mode">◐</button>
+    <button class="modebtn" id="modeBtn" type="button" title="Switch theme" aria-label="Switch theme"></button>
   </div>
 </div></header>
 <div class="wrap">
@@ -188,13 +201,15 @@ function inline(s){
   t = t.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
   return t.split(/\n{2,}/).map(function(p){return '<p>'+p.replace(/\n/g,'<br>')+'</p>'}).join('');
 }
-function L(v){ // layered text -> spans for each depth
+function L(v, compact){ // layered text -> spans for each depth
   if (v==null || v==='') return '';
   if (typeof v === 'string') return '<div class="txt">'+inline(v)+'</div>';
   var out='';
   DEPTHS.forEach(function(d){
     var t = v[d] || v.teammate || v.eli5 || v.senior || '';
-    out += '<div class="txt d d-'+d+'">'+inline(t)+'</div>';
+    var p = '';
+    if (d==='eli5' && v.plain && v.plain !== t) p = compact ? '<div class="meta">👉 '+esc(v.plain)+'</div>' : '<div class="plain"><span class="pl">👉 In plain words</span>'+inline(v.plain)+'</div>';
+    out += '<div class="txt d d-'+d+'">'+inline(t)+p+'</div>';
   });
   return out;
 }
@@ -248,7 +263,7 @@ if ((R.theme_map||[]).length){
   R.theme_map.forEach(function(x){
     b += '<div class="card tm searchable"><div class="real">'+esc(x.part)+(x.real?' · <span class="mono" style="text-transform:none;letter-spacing:0">'+esc(x.real)+'</span>':'')+'</div><div class="is">'+esc(x.is)+'</div><div class="why">'+esc(x.why||'')+'</div></div>';
   });
-  sec('cast','🎭','The cast','Every real part of the project gets a role in '+esc(M.theme||'the theme')+'. The same role is used everywhere in this report.', b+'</div>', R.theme_map.length);
+  sec('cast','🎭','The cast','Every real part of the project gets a role in '+esc(M.theme||'the theme')+'. The same role is used everywhere in this report.'+(M.theme_brief?'<br><span class="meta">'+esc(M.theme_brief)+'</span>':''), b+'</div>', R.theme_map.length);
 }
 
 /* ---------- big picture ---------- */
@@ -312,7 +327,7 @@ var F = R.findings||[];
       (f.category?'<span class="chip">'+esc(f.category)+'</span>':'')+proofBadge(f)+'</div>'+
       '<h3><span class="d d-eli5">'+esc(f.title_eli5||f.title)+'</span><span class="d d-teammate">'+esc(f.title||f.title_eli5)+'</span><span class="d d-senior">'+esc(f.title||f.title_eli5)+'</span></h3>'+
       L(f.explain)+
-      (f.why_it_matters?'<div class="label">Why it matters</div>'+L(f.why_it_matters):'')+
+      (f.why_it_matters?'<div class="label">Why it matters</div>'+L(f.why_it_matters, true):'')+
       (f.fix?'<div class="fix"><strong>🛠 How to fix: </strong>'+L(f.fix)+'</div>':'')+
       EV(f.evidence)+'</div>';
   });
@@ -409,10 +424,34 @@ function drawDiagrams(){
     window.mermaid.render('dg'+i+'_'+Date.now(), src).then(function(r){ el.innerHTML = r.svg; }).catch(function(){ el.innerHTML = '<pre>'+esc(src)+'</pre>'; });
   });
 }
-var saved = store('eli5-mode'); if (saved) document.documentElement.setAttribute('data-theme', saved);
-document.getElementById('modeBtn').addEventListener('click',function(){
-  var next = isDark()?'light':'dark'; document.documentElement.setAttribute('data-theme',next); store('eli5-mode',next); drawDiagrams();
+/* ---------- theme switch: the new theme grows as a circle from the button ---------- */
+var modeBtn = document.getElementById('modeBtn');
+var ICON_MOON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+var ICON_SUN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+function motionAllowed(){ try{ return !matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+function paintModeBtn(turn){
+  var dark = isDark(), label = dark ? 'Switch to light theme' : 'Switch to dark theme';
+  modeBtn.innerHTML = dark ? ICON_SUN : ICON_MOON;   // a moon in light, a sun in dark
+  modeBtn.setAttribute('aria-label', label); modeBtn.title = label;
+  var svg = modeBtn.querySelector('svg');
+  if (turn && svg && svg.animate && motionAllowed()){
+    // the new icon turns in: from -90deg and 60% to upright, with a slight overshoot
+    svg.animate([{transform:'rotate(-90deg) scale(.6)'},{transform:'rotate(0) scale(1)'}], {duration:600, easing:'cubic-bezier(.34,1.8,.64,1)'});
+  }
+}
+function applyMode(mode){ document.documentElement.setAttribute('data-theme', mode); store('eli5-mode', mode); paintModeBtn(true); drawDiagrams(); }
+modeBtn.addEventListener('click',function(){
+  var next = isDark() ? 'light' : 'dark';
+  if (!document.startViewTransition || !motionAllowed()){ applyMode(next); return; }
+  var box = modeBtn.getBoundingClientRect(), x = box.left + box.width/2, y = box.top + box.height/2;
+  var r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  document.startViewTransition(function(){ applyMode(next); }).ready.then(function(){
+    document.documentElement.animate(
+      { clipPath: ['circle(0px at '+x+'px '+y+'px)', 'circle('+r+'px at '+x+'px '+y+'px)'] },
+      { duration: 640, easing: 'cubic-bezier(.65,0,.35,1)', pseudoElement: '::view-transition-new(root)' });
+  }).catch(function(){});
 });
+paintModeBtn(false);
 drawDiagrams();
 })();
 </script>

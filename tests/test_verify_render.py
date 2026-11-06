@@ -87,7 +87,7 @@ class Render(unittest.TestCase):
         render.render(p, self.tmp, SHOP)
         html = read(os.path.join(self.tmp, "index.html"))
         self.assertNotIn("<img src=x", html)
-        self.assertEqual(html.count("</script>"), 3)   # only the page's own three script tags
+        self.assertEqual(html.count("</script>"), 4)   # only the page's own four script tags
         md = read(os.path.join(self.tmp, "README.eli5.md"))
         self.assertIn("src/server.js#L9", md)
 

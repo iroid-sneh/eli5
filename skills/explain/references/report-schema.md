@@ -4,12 +4,18 @@ Write the report to `<repo>/.eli5/reports/<theme-slug>.json`. Here `theme-slug` 
 
 ## Building blocks
 
-**Layered text.** Every explanation field is an object with three depths:
+**Layered text.** Every explanation field is an object with three depths plus a plain-words line:
 
 ```json
-{ "eli5": "Pure theme language. Short sentences.", "teammate": "Theme + real technical names.", "senior": "Plain technical, paths, trade-offs." }
+{
+  "eli5": "The story in the theme, using the cast by name. Short sentences.",
+  "plain": "What really happens, in everyday words: no theme, no jargon.",
+  "teammate": "Plain English first, then real technical names.",
+  "senior": "Plain technical, paths, trade-offs."
+}
 ```
 
+`plain` is shown right under the 🧒 text as "👉 In plain words". It is **required** on `story`, every module's `explain`, and every finding's `explain`. Elsewhere it's optional (on `why_it_matters` it shows as a short inline line, so don't just repeat the eli5 text).
 A plain string is also accepted. It is shown at every depth, so use it only for things that don't change by depth.
 
 **Evidence.** Every claim that states something about the code carries `evidence`:
@@ -35,13 +41,15 @@ A plain string is also accepted. It is shown at every depth, so use it only for 
     "generated_at": "2026-11-06T18:00:00",
     "default_depth": "eli5",
     "source_url_base": "https://github.com/OWNER/REPO/blob/main",   // optional: only if the user gave a URL
-    "stats": { "files": 12, "lines_of_code": 140, "languages": ["JavaScript"], "frameworks": ["Express"] }
+    "stats": { "files": 12, "lines_of_code": 140, "languages": ["JavaScript"], "frameworks": ["Express"] },
+    "theme_brief": "Suits: TV legal drama. Cast used: Harvey Specter, Mike Ross, Donna Paulsen, Jessica Pearson, Louis Litt…"   // optional, 1–3 sentences
   },
 
-  "story": { "eli5": "...", "teammate": "...", "senior": "..." },          // 3–6 sentences: what it is, who it's for, the state it's in
+  "story": { "eli5": "...", "plain": "...", "teammate": "...", "senior": "..." },          // 3–6 sentences: what it is, who it's for, the state it's in
 
   "theme_map": [                                                           // 6–14 rows, reused everywhere
     { "part": "Payments", "real": "Stripe via src/routes/payments.js", "is": "The ticket counter", "why": "Real money turns into a seat at the match" }
+    // for a specific show/game, "is" is a real character or place: { "part": "Usage limits", "real": "...", "is": "Louis Litt", "why": "Obsessed with billable hours: counts and charges every use" }
   ],
 
   "architecture": {
@@ -86,10 +94,10 @@ A plain string is also accepted. It is shown at every depth, so use it only for 
       "severity": "broken",                                                // broken | risky | unfinished | cleanup
       "confidence": "verified",                                            // verified (you read the code and it's certain) | likely | guess
       "category": "payments",                                              // payments | auth | security | data | performance | reliability | unfinished | tests | config | dead-code | docs
-      "title_eli5": "Anyone can shout 'he paid!' and the ticket counter believes them",
+      "title_eli5": "Anyone can fake a 'payment done' message, and the shop believes it",   // must make sense on its own
       "title": "Stripe webhook does not verify signatures",
-      "explain": { "eli5": "...", "teammate": "...", "senior": "..." },
-      "why_it_matters": { "eli5": "...", "teammate": "...", "senior": "..." },
+      "explain": { "eli5": "...", "plain": "...", "teammate": "...", "senior": "..." },
+      "why_it_matters": { "eli5": "...", "plain": "...", "teammate": "...", "senior": "..." },
       "fix": { "eli5": "...", "teammate": "...", "senior": "Use stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET) with express.raw()." },
       "evidence": [ ... ]
     }

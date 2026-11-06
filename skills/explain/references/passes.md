@@ -5,6 +5,7 @@ The report is read by three kinds of people at once: a curious non-developer, a 
 ## Story (`story`)
 - **What it is, who it's for, and what state it's in**, in 3–6 sentences.
 - The 🧒 version must make a 10-year-old nod: "This app is a cricket stadium where fans buy tickets for matches…"
+- The 👉 `plain` version says the same in everyday words: "This is the server behind an online shop: it lists products, takes orders and charges cards through Stripe."
 - Include the honest headline: "Most of the stadium is built, but the ticket counter can be tricked and refunds don't exist yet."
 - Source: README + routes + UI pages + models. If the README and the code disagree, trust the code and mention the gap.
 
@@ -64,7 +65,13 @@ Use the scanner's `git` section (hotspots, recent commits, WIP commits, uncommit
 - Glossary: 8–20 project-specific terms (domain words + tech names), each with a theme-language meaning and a real meaning.
 - FAQ: 4–8 questions a new owner would ask. "Can it take real payments today?", "Is it safe to deploy?", "What should I fix first?", "Where do I add a new X?". Answer honestly, with evidence.
 
-## Tone
+## Tone & clarity
 - Warm, concrete, a bit playful, never condescending.
 - Honest: the 🧒 layer must still say when something is broken.
+- **Explain, don't decorate.** The analogy exists to make the real behaviour obvious. If the reader has to decode it, rewrite it.
+- **One metaphor per idea.** Never describe one metaphor with another ("the mole hid the safe combinations in a drawer").
+- **Use the cast by name** for specific worlds, and say what they *do* in this project: "Louis Litt (the usage limits) charges one review per screenshot batch."
+- **Always pair 🧒 with 👉 `plain`:** the same point in everyday words, with no theme and no jargon, saying who is affected and how.
+- **Be concrete.** Prefer numbers, names and consequences over "some", "a few", "mostly", "issues", "well run".
+- **The project's own names stay recognisable**: "Vela (the app's AI, played by Harvey)". Never let them blur with theme names.
 - No filler, no marketing words, no "robust/seamless/leverages".

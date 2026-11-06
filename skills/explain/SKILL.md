@@ -21,6 +21,7 @@ Arguments given: `$ARGUMENTS`
 4. **Honesty over niceness.** If payments are fake, auth is missing or a feature is a stub, say so plainly in the 🧒 layer too. Never soften a 🔴.
 5. **One theme map, used everywhere.** Never mix metaphors.
 6. **Never reveal secrets.** The scanner masks them. Don't open `.env` files to read values; refer to secrets by name and location only.
+7. **The theme is a teaching tool, not decoration.** Every analogy must make the real thing *easier* to understand. If a sentence needs decoding, it has failed, so rewrite it. Each 🧒 explanation is followed by a plain-words line saying what really happens (see "Writing rules").
 
 ## Step 0: Parse the request
 
@@ -31,6 +32,19 @@ Arguments given: `$ARGUMENTS`
 - If `<repo>/.eli5/reports/` already has a report for *another* theme, this is a **theme switch**. See "Theme switch" below.
 
 Tell the user in one line what you're doing: "Scanning the project, then explaining it as cricket 🏏".
+
+## Step 0.5: Learn the theme first (before touching the code)
+
+You can't explain *in* a world you don't know well. Write a short **theme brief** for yourself before anything else:
+
+1. **Pin down exactly what the user means.** "Suits" is the TV legal drama, "PUBG" is a specific battle-royale game, and "IPL" is a specific cricket league. If the name could mean two very different things and context doesn't settle it, ask once.
+2. **Is it a specific world or a general topic?**
+   - **Specific world** (a TV show, film or series, a game, a book, a league, a team, a band): you **must** use its real characters, places, objects and famous situations by name. "The managing partner" is wrong for Suits. **Jessica Pearson** is right.
+   - **General topic** (cricket, cooking, cars, school): use the real vocabulary that people who love it use (DRS, third umpire, follow-on), not vague words.
+3. **Collect the cast** (8–15 entries): main characters with **what they are famous for** (personality, job, signature habit), key places, iconic objects and well-known situations. Only use details a fan would immediately recognise. If you're unsure of a detail, look it up (WebSearch, if available) or leave it out. Never invent lore.
+4. Use `references/themes.md` for built-in packs and the worked examples of how to cast a specific world.
+
+Allowed: character, place and object names, roles, personalities, and famous situations described in your own words, plus a very short signature catchphrase at most. Not allowed: logos, images, lyrics, scripts or long quotes.
 
 ## Step 1: Scan (no AI, ~seconds)
 
@@ -54,18 +68,44 @@ Read in this order. Skim, don't read everything:
 
 **Big repos** (more than ~400 code files, or more than 60k lines): group modules into up to 5 batches and launch parallel **read-only** subagents (e.g. `Explore`). Give each one the module list, the relevant slice of facts.json, and the instructions in `references/passes.md` §Module cards and `references/health-checklist.md`. Ask them to return module cards + candidate findings as JSON with exact evidence quotes. Then merge and de-duplicate their results yourself.
 
-## Step 3: Build the theme map
+## Step 3: Cast the project (build the theme map)
 
-Read `references/themes.md`. Use the built-in pack if the theme matches one; otherwise create a map in the same spirit. Map **only the parts this project actually has** (6–14 rows). Each row is real part → theme thing → why it fits. Keep it fun, accurate and kid-friendly. Text only: refer to franchises by general concepts, never quote them at length.
+Map **only the parts this project actually has** (6–14 rows) to entries from your theme brief: real part → theme character/place/thing → why it fits.
+
+**Casting rules:**
+- **Cast by what the thing does, not by importance.** The match must teach something. Louis Litt is obsessed with billable hours, so he plays usage limits and billing: the reader instantly gets "counts and charges for every use". A character with no behavioural link teaches nothing.
+- **One character or place per part, and the same one everywhere.** Never move a character to a new role mid-report.
+- **The `why` names the trait that makes it fit**, e.g. "Donna knows everything and decides who gets to see Harvey, just like the router decides which code handles each request."
+- **Keep the project's own names.** If the app has its own names (an AI persona, a product name), keep them and attach the cast role once, e.g. "Vela (the app's AI, played here by Harvey Specter)". Never let a project name and a theme name blur together.
+- **Problems can be cast too**, using famous moments from the world. In Suits, a hidden betrayer inside the firm is Daniel Hardman; a secret that could bring the firm down is Mike's fake law degree. Use them only when the parallel is genuinely accurate.
 
 ## Step 4: Write the report JSON
 
 Follow `references/report-schema.md` exactly. Follow `references/passes.md` for how to write each section and `references/health-checklist.md` for findings. Save to `<repo>/.eli5/reports/<theme-slug>.json` with the Write tool. Fill `meta.stats` from facts.json.
 
-Writing style for each depth:
-- 🧒 **eli5**: theme words only, sentences ≤15 words, no jargon, warm and concrete. End analogy-heavy explanations with "In real code: `path`" when it helps.
-- 🧑‍💻 **teammate**: theme word + real name, e.g. "the ticket counter (Stripe checkout in `payments.js`)". Explain how pieces connect.
-- 🧠 **senior**: no theme. Precise, technical, names the trade-offs and exact locations.
+### Writing rules (these matter more than anything else)
+
+Each explanation is a layered object: `{ "eli5", "plain", "teammate", "senior" }`.
+
+- 🧒 **eli5**: the story in the theme. Sentences ≤15 words.
+  - **One metaphor per idea, and never a metaphor for a metaphor.** ❌ "A mole hid in the firm's files and the safe combinations sit in a drawer." ✅ "Like Daniel Hardman secretly stealing from the firm, someone hid harmful code inside the login settings file. It ran for six months."
+  - Use the cast by name. Say what the character *does* in this project, not only who they are.
+- 👉 **plain**: **required on story, every module, and every finding's `explain`** (optional on `why_it_matters`, where it is shown as a short inline line). One or two sentences in everyday words with no theme and no jargon, saying what really happens to real people: "Anyone who knows the default admin password can open the admin panel and read every user's private chats." A parent who has never seen the show or the code must understand it.
+- 🧑‍💻 **teammate**: plain English first, technical names second. Define every term the first time it appears. Max ~5 sentences. Explain how the pieces connect.
+- 🧠 **senior**: no theme. Precise and technical; names the trade-offs and exact locations.
+
+**Banned in eli5/plain:** vague quantity words ("some", "a few", "mostly", "various", "certain") when the real number or name is known; words like "issues", "stuff", "things", "well run" or "robust"; unexplained jargon; riddle titles. Use concrete facts: *how many*, *who* is affected, *what* happens.
+
+**Titles** (`title_eli5`) must make sense on their own in one read: theme hook + real consequence. ❌ "The shredder skips the photo drawers." ✅ "When a user deletes their account, their photos are never deleted."
+
+## Step 4.5: Clarity review (re-read before verifying)
+
+Read only the 🧒 and 👉 text of the story, the module cards and the findings, imagining two readers: a 10-year-old fan of the theme who knows nothing about code, and a parent who has never seen the theme. Fix every sentence where:
+- either reader would ask "what does that actually mean?"
+- a metaphor is stacked on another metaphor
+- a theme character is named but their role in *this* project isn't clear
+- a vague word hides a known fact (a number, a name, a consequence)
+- a 🔴/🟠 finding's plain line doesn't say who gets hurt and how
 
 ## Step 5: Verify the proof (no AI)
 
@@ -111,12 +151,15 @@ Keep it short and in the theme's voice:
 If a report for another theme already exists and the code hasn't changed much:
 1. Re-run the scan (fast) to confirm nothing big changed.
 2. Load the existing report. **Keep** the `senior` text, statuses, findings (severity, confidence, evidence), journeys structure, run steps and handover facts.
-3. **Rewrite** only `theme_map`, every `eli5` and `teammate` text, `title_eli5`, `theme_role`, glossary `eli5`, and `meta.theme`.
+3. Do Step 0.5 for the new theme, then **rewrite** only `theme_map`, every `eli5` and `teammate` text, `title_eli5`, `theme_role`, glossary `eli5`, and `meta.theme`. Keep the `plain` lines; they don't depend on the theme.
 4. Save as a new `<new-theme-slug>.json`, then verify → render. The theme dropdown in the page will list both themes.
 
 ## Quality checklist (before rendering)
 
-- [ ] A non-developer reading only 🧒 can say what the app does, its main parts, and what's broken.
+- [ ] A non-developer reading only 🧒 + 👉 can say what the app does, its main parts, and what's broken.
+- [ ] For a specific show/game/film, the real characters and places are used by name, each cast for a matching trait.
+- [ ] Story, every module and every finding have a `plain` line.
+- [ ] No riddle titles, no stacked metaphors, no vague quantity words.
 - [ ] Every finding has severity, confidence, evidence, why it matters, and a fix.
 - [ ] Nothing in the report is invented: no made-up features, people, numbers or files.
 - [ ] The theme map is used consistently everywhere.
